@@ -1,0 +1,54 @@
+appId: dev.umut.autocut-ui
+productName: autocut-ui
+copyright: Copyright © 2026 Umut Ozyildirim
+asar: true
+artifactName: "${productName}-${version}-${os}-${arch}.${ext}"
+
+directories:
+  buildResources: build
+  output: release
+
+files:
+  - out/**/*
+  - package.json
+  - "!node_modules/**/{CHANGELOG.md,README.md,readme.md,test,tests,docs,*.d.ts.map}"
+
+extraResources:
+  - from: resources/bin/${platform}-${arch}
+    to: bin/${platform}-${arch}
+    filter: ["**/*"]
+
+mac:
+  category: public.app-category.video
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  notarize: false
+  icon: resources/icon.icns
+
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: resources/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  artifactName: "${productName}-Setup-${version}.${ext}"
+
+afterSign: build/notarize.cjs
