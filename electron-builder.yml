@@ -24,6 +24,7 @@ mac:
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  identity: null   # unsigned DMG; flip to a Developer ID when CSC_LINK is set
   target:
     - target: dmg
       arch: [arm64, x64]

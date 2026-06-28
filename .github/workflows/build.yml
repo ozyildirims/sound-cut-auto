@@ -42,25 +42,35 @@ jobs:
         run: npm run fetch:all
         continue-on-error: true
 
+      # Empty string secrets are still rendered into env by GitHub Actions and
+      # electron-builder treats CSC_LINK="" as a cert file path → "not a file"
+      # crash. The signing env block below only takes effect when the secret
+      # actually has a value, so unsigned dev releases just work.
       - name: Package (macOS)
         if: matrix.os == 'macos-14'
         env:
-          # Notarization runs only if these are set as repository secrets
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --mac --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+          APPLE_ID: ${{ secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || '' }}
+        run: |
+          if [ -n "${{ secrets.MAC_CSC_LINK }}" ]; then
+            export CSC_LINK="${{ secrets.MAC_CSC_LINK }}"
+            export CSC_KEY_PASSWORD="${{ secrets.MAC_CSC_KEY_PASSWORD }}"
+          fi
+          npx electron-builder --mac --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
 
       - name: Package (Windows)
         if: matrix.os == 'windows-latest'
         env:
-          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.WIN_CSC_LINK }}" ]; then
+            export CSC_LINK="${{ secrets.WIN_CSC_LINK }}"
+            export CSC_KEY_PASSWORD="${{ secrets.WIN_CSC_KEY_PASSWORD }}"
+          fi
+          npx electron-builder --win --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
 
       - name: Upload artifacts
         if: '!startsWith(github.ref, ''refs/tags/v'')'
