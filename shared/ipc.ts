@@ -17,6 +17,7 @@ export const IPC = {
   dialogSaveFile: 'dialog:save-file',
 
   shellReveal: 'shell:reveal',
+  shellOpen: 'shell:open',
   shellOpenLogs: 'shell:open-logs',
 
   settingsGet: 'settings:get',
@@ -38,6 +39,7 @@ export interface IpcContract {
   [IPC.dialogSelectFolder]: { request: void; response: string | null }
   [IPC.dialogSaveFile]: { request: { suggestedName?: string }; response: string | null }
   [IPC.shellReveal]: { request: string; response: void }
+  [IPC.shellOpen]: { request: string; response: void }
   [IPC.shellOpenLogs]: { request: void; response: void }
   [IPC.settingsGet]: { request: void; response: AutoEditSettings }
   [IPC.settingsSet]: { request: AutoEditSettings; response: AutoEditSettings }

@@ -30,6 +30,7 @@ const api: AutocutApi = {
   },
   shell: {
     reveal: (path: string) => invoke(IPC.shellReveal, path),
+    open: (path: string) => invoke(IPC.shellOpen, path),
     openLogs: () => invoke(IPC.shellOpenLogs)
   },
   settings: {

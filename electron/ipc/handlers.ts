@@ -1,8 +1,10 @@
+import path from 'node:path'
 import { BrowserWindow, ipcMain } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { AutoEditSettings, CliStatus, StartJobInput } from '@shared/types'
+import type { AutoEditSettings, CliStatus, ExportFormat, StartJobInput } from '@shared/types'
 import {
   openLogsDir,
+  openPath,
   openVideoFiles,
   revealInFinder,
   selectCliBinary,
@@ -58,6 +60,9 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC.shellReveal, async (_e, targetPath: string) => {
     if (typeof targetPath === 'string' && targetPath) revealInFinder(targetPath)
   })
+  ipcMain.handle(IPC.shellOpen, async (_e, targetPath: string) => {
+    if (typeof targetPath === 'string' && targetPath) await openPath(targetPath)
+  })
   ipcMain.handle(IPC.shellOpenLogs, async () => {
     await openLogsDir()
   })
@@ -70,8 +75,9 @@ export function registerIpcHandlers(): void {
     if (!status.found || !status.path) {
       throw new Error('auto-editor binary bulunamadı. Lütfen ayarlardan bir yol gösterin.')
     }
-    logger.info('job:start', { mode: input.mode, file: input.filePath })
-    return createJob({ binary: status.path, input })
+    const resolved: StartJobInput = { ...input, outputPath: resolveOutputPath(input) }
+    logger.info('job:start', { mode: resolved.mode, file: resolved.filePath, outputPath: resolved.outputPath })
+    return createJob({ binary: status.path, input: resolved })
   })
 
   ipcMain.handle(IPC.jobCancel, async (_e, jobId: string) => {
@@ -79,4 +85,31 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC.jobList, async () => listJobs())
+}
+
+// null = leave auto-editor's default (it picks the right extension itself)
+const FORMAT_EXTENSION: Record<ExportFormat, string | null> = {
+  default: null,
+  premiere: '.xml',
+  'final-cut-pro': '.fcpxml',
+  resolve: '.xml',
+  shotcut: '.mlt',
+  json: '.json',
+  audio: '.m4a',
+  'clip-sequence': null
+}
+
+function resolveOutputPath(input: StartJobInput): string | undefined {
+  if (input.mode !== 'export') return undefined
+  if (input.outputPath) return input.outputPath
+  const format = input.settings.exportFormat
+  const formatExt = FORMAT_EXTENSION[format]
+  // clip-sequence produces a directory of clips; let auto-editor decide.
+  if (format === 'clip-sequence') return undefined
+  const inputExt = path.extname(input.filePath) || '.mp4'
+  const ext = formatExt ?? inputExt
+  const base = path.basename(input.filePath, inputExt)
+  const fileName = `${base}_ALTERED${ext}`
+  const dir = input.settings.outputDir || path.dirname(input.filePath)
+  return path.join(dir, fileName)
 }

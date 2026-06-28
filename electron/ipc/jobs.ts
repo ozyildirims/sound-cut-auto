@@ -5,6 +5,7 @@ import { runAutoEditor, SpawnHandle } from '../cli/spawn'
 import { buildArgs } from '../cli/buildArgs'
 import { ProgressEmitter, ProgressParser } from '../cli/progressParser'
 import { parseStats } from '../cli/statsParser'
+import { applyRotationMetadata, probeRotation } from '../cli/ffmpeg'
 import { logger } from '../util/logger'
 import { IPC } from '@shared/ipc'
 import type { Job, JobEvent, JobMode, JobStatus, StartJobInput } from '@shared/types'
@@ -117,6 +118,13 @@ function startEntry(entry: RegistryEntry, binary: string, input: StartJobInput):
   entry.job.startedAt = Date.now()
   logger.info('spawn auto-editor', { jobId: entry.job.id, binary, args })
 
+  // Capture input rotation up-front so we can re-apply it to the output, since
+  // auto-editor's re-encode drops the display matrix on iPhone-style videos.
+  // Only meaningful when we actually re-encode a video (the 'default' format);
+  // other export modes write XML/JSON/audio where rotation tags don't apply.
+  const isVideoRender = input.mode === 'export' && input.settings.exportFormat === 'default'
+  const inputRotation = isVideoRender ? probeRotation(input.filePath).rotation : 0
+
   const handle = runAutoEditor(binary, args, {
     onStdout: (line) => handleLine(entry, 'stdout', line, input.mode),
     onStderr: (line) => handleLine(entry, 'stderr', line, input.mode),
@@ -133,9 +141,27 @@ function startEntry(entry: RegistryEntry, binary: string, input: StartJobInput):
           : signal
             ? 'cancelled'
             : 'failed'
-      finish(entry, { status, exitCode: code, signal, errorMessage: error?.message })
-      currentRunningId = null
-      void drain({ binary, input })
+
+      const finalize = (errorMessage?: string) => {
+        finish(entry, { status, exitCode: code, signal, errorMessage: errorMessage ?? error?.message })
+        currentRunningId = null
+        void drain({ binary, input })
+      }
+
+      if (status === 'completed' && isVideoRender && input.outputPath && inputRotation !== 0) {
+        applyRotationMetadata(input.outputPath, inputRotation)
+          .then(() => {
+            logger.info('rotation metadata applied', { jobId: entry.job.id, degrees: inputRotation })
+            finalize()
+          })
+          .catch((err) => {
+            logger.error('rotation post-process failed', err)
+            // Don't fail the job — the cut video is still usable, just not auto-rotated.
+            finalize()
+          })
+      } else {
+        finalize()
+      }
     }
   })
   entry.handle = handle

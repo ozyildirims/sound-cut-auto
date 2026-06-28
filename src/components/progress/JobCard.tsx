@@ -1,4 +1,4 @@
-import { CheckCircle2, FolderOpen, Loader2, XCircle, X } from 'lucide-react'
+import { CheckCircle2, FolderOpen, Loader2, Play, XCircle, X } from 'lucide-react'
 import type { Job } from '@shared/types'
 import { ipc } from '../../ipc/client'
 import { useAppStore } from '../../state/store'
@@ -15,9 +15,25 @@ const PHASE_LABEL: Record<string, string> = {
 export function JobCard({ job }: { job: Job }) {
   const cancelJob = useAppStore((s) => s.cancelJob)
   const pct = Math.round(job.ratio * 100)
+  const isDone = job.status === 'completed'
+  const canOpen = isDone && job.mode === 'export' && Boolean(job.outputPath)
+
+  const openVideo = (e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    if (job.outputPath) void ipc.shell.open(job.outputPath)
+  }
+
+  const revealVideo = (e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    if (job.outputPath) void ipc.shell.reveal(job.outputPath)
+  }
 
   return (
-    <div className="card p-4">
+    <div
+      onClick={canOpen ? openVideo : undefined}
+      className={`card p-4 ${canOpen ? 'cursor-pointer transition-colors hover:border-accent/50 hover:bg-white/[0.02]' : ''}`}
+      title={canOpen ? 'Tıkla — videoyu aç' : undefined}
+    >
       <div className="flex items-start gap-3">
         <StatusIcon status={job.status} />
         <div className="min-w-0 flex-1">
@@ -40,28 +56,51 @@ export function JobCard({ job }: { job: Job }) {
               style={{ width: `${pct}%` }}
             />
           </div>
+          {job.outputPath && isDone && (
+            <div className="mt-2 truncate font-mono text-[11px] text-zinc-500" title={job.outputPath}>
+              {job.outputPath}
+            </div>
+          )}
           {job.errorMessage && (
             <div className="mt-2 text-xs text-rose-300">{job.errorMessage}</div>
+          )}
+          {isDone && job.mode === 'export' && (
+            <div className="mt-2 text-xs text-zinc-500">
+              Çıktıda fark görmediysen Project ekranından "Kesim agresifliği"ni yükseltip
+              tekrar dene.
+            </div>
           )}
         </div>
         <div className="flex items-center gap-1">
           {job.status === 'running' || job.status === 'queued' ? (
             <button
               className="btn-ghost text-zinc-400 hover:text-rose-300"
-              onClick={() => void cancelJob(job.id)}
+              onClick={(e) => {
+                e.stopPropagation()
+                void cancelJob(job.id)
+              }}
               title="İptal"
             >
               <X className="h-4 w-4" />
             </button>
           ) : (
-            job.outputPath && (
-              <button
-                className="btn-ghost text-zinc-400"
-                onClick={() => void ipc.shell.reveal(job.outputPath!)}
-                title="Klasörde göster"
-              >
-                <FolderOpen className="h-4 w-4" />
-              </button>
+            canOpen && (
+              <>
+                <button
+                  className="btn-ghost text-zinc-400 hover:text-accent"
+                  onClick={openVideo}
+                  title="Videoyu aç"
+                >
+                  <Play className="h-4 w-4" />
+                </button>
+                <button
+                  className="btn-ghost text-zinc-400"
+                  onClick={revealVideo}
+                  title="Klasörde göster"
+                >
+                  <FolderOpen className="h-4 w-4" />
+                </button>
+              </>
             )
           )}
         </div>

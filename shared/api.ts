@@ -14,6 +14,7 @@ export interface AutocutApi {
   }
   shell: {
     reveal: (path: string) => Promise<void>
+    open: (path: string) => Promise<void>
     openLogs: () => Promise<void>
   }
   settings: {

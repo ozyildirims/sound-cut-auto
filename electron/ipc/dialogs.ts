@@ -59,6 +59,10 @@ export function revealInFinder(targetPath: string): void {
   shell.showItemInFolder(targetPath)
 }
 
+export async function openPath(targetPath: string): Promise<void> {
+  await shell.openPath(targetPath)
+}
+
 export async function openLogsDir(): Promise<void> {
   await shell.openPath(getLogsDir())
 }
