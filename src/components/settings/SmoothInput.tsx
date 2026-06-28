@@ -1,9 +1,10 @@
 import * as Switch from '@radix-ui/react-switch'
 import { useAppStore } from '../../state/store'
+import { useEffectiveSettings } from '../../state/hooks'
 
 export function SmoothInput() {
-  const settings = useAppStore((s) => s.settings)
-  const patch = useAppStore((s) => s.patchSettings)
+  const settings = useEffectiveSettings()
+  const patch = useAppStore((s) => s.patchEffective)
 
   return (
     <div className="space-y-2">

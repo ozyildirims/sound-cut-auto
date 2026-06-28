@@ -1,8 +1,9 @@
 import { useAppStore } from '../../state/store'
+import { useEffectiveSettings } from '../../state/hooks'
 
 export function MarginInput() {
-  const value = useAppStore((s) => s.settings.margin)
-  const patch = useAppStore((s) => s.patchSettings)
+  const value = useEffectiveSettings().margin
+  const patch = useAppStore((s) => s.patchEffective)
   return (
     <div className="space-y-2">
       <label className="label">Margin (sessiz olmayan bölümlerin etrafına ekle)</label>

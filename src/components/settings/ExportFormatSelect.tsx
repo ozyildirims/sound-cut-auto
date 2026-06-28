@@ -2,10 +2,11 @@ import * as Select from '@radix-ui/react-select'
 import { Check, ChevronDown } from 'lucide-react'
 import { EXPORT_FORMATS, type ExportFormat } from '@shared/types'
 import { useAppStore } from '../../state/store'
+import { useEffectiveSettings } from '../../state/hooks'
 
 export function ExportFormatSelect() {
-  const value = useAppStore((s) => s.settings.exportFormat)
-  const patch = useAppStore((s) => s.patchSettings)
+  const value = useEffectiveSettings().exportFormat
+  const patch = useAppStore((s) => s.patchEffective)
 
   return (
     <div className="space-y-2">

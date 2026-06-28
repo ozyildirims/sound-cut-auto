@@ -21,34 +21,42 @@ interface PreviewState {
   error: string | null
 }
 
-interface ExportRunState {
-  jobIds: string[]
-}
-
 interface State {
   screen: Screen
   setScreen: (screen: Screen) => void
 
   files: VideoFile[]
+  selectedFileId: string | null
+  setSelectedFile: (id: string | null) => void
   addFiles: (paths: string[]) => void
   removeFile: (id: string) => void
   reorderFile: (id: string, direction: -1 | 1) => void
   clearFiles: () => void
+  updateFile: (id: string, patch: Partial<VideoFile>) => void
 
   settings: AutoEditSettings
   loadSettings: () => Promise<void>
   patchSettings: (patch: Partial<AutoEditSettings>) => void
   resetSettings: () => Promise<void>
 
+  effectiveSettingsFor: (fileId: string | null) => AutoEditSettings
+  patchEffective: (patch: Partial<AutoEditSettings>) => void
+  applyOverrideToAll: () => void
+  resetOverride: () => void
+
   cli: CliStatus
   refreshCli: () => Promise<void>
   setCliStatus: (status: CliStatus) => void
+
+  recentFiles: string[]
+  loadRecent: () => Promise<void>
+  setRecentFiles: (paths: string[]) => void
+  clearRecent: () => Promise<void>
 
   preview: PreviewState
   startPreview: (filePath: string) => Promise<void>
 
   jobs: Job[]
-  exportRun: ExportRunState
   startExport: () => Promise<void>
   cancelJob: (jobId: string) => Promise<void>
   hydrateJobs: () => Promise<void>
@@ -69,6 +77,8 @@ export const useAppStore = create<State>((set, get) => ({
   setScreen: (screen) => set({ screen }),
 
   files: [],
+  selectedFileId: null,
+  setSelectedFile: (id) => set({ selectedFileId: id }),
   addFiles: (paths) => {
     const existing = new Set(get().files.map((f) => f.path))
     const additions: VideoFile[] = []
@@ -84,10 +94,31 @@ export const useAppStore = create<State>((set, get) => ({
       })
     }
     if (additions.length) {
-      set({ files: [...get().files, ...additions], screen: 'project' })
+      const next = [...get().files, ...additions]
+      set({
+        files: next,
+        screen: 'project',
+        selectedFileId: get().selectedFileId ?? additions[0].id
+      })
+      void ipc.recent.add(additions.map((a) => a.path))
+      // Lazily fetch duration + thumbnail in the background; UI updates as they land.
+      for (const f of additions) {
+        void ipc.media.probe(f.path).then((info) => {
+          get().updateFile(f.id, {
+            durationSeconds: info.durationSeconds ?? undefined,
+            thumbnailDataUrl: info.thumbnailDataUrl ?? undefined
+          })
+        }).catch(() => { /* best-effort */ })
+      }
     }
   },
-  removeFile: (id) => set({ files: get().files.filter((f) => f.id !== id) }),
+  removeFile: (id) => {
+    const list = get().files.filter((f) => f.id !== id)
+    set({
+      files: list,
+      selectedFileId: get().selectedFileId === id ? (list[0]?.id ?? null) : get().selectedFileId
+    })
+  },
   reorderFile: (id, direction) => {
     const list = [...get().files]
     const idx = list.findIndex((f) => f.id === id)
@@ -98,7 +129,10 @@ export const useAppStore = create<State>((set, get) => ({
     list.splice(target, 0, item)
     set({ files: list })
   },
-  clearFiles: () => set({ files: [], preview: { ...emptyPreview } }),
+  clearFiles: () => set({ files: [], selectedFileId: null, preview: { ...emptyPreview } }),
+  updateFile: (id, patch) => {
+    set({ files: get().files.map((f) => (f.id === id ? { ...f, ...patch } : f)) })
+  },
 
   settings: DEFAULT_SETTINGS,
   loadSettings: async () => {
@@ -115,6 +149,54 @@ export const useAppStore = create<State>((set, get) => ({
     set({ settings: next })
   },
 
+  effectiveSettingsFor: (fileId) => {
+    const { settings, files } = get()
+    if (!fileId) return settings
+    const f = files.find((x) => x.id === fileId)
+    if (!f?.settingsOverride) return settings
+    return { ...settings, ...f.settingsOverride }
+  },
+  patchEffective: (patch) => {
+    const { selectedFileId, files, settings } = get()
+    if (!selectedFileId) {
+      get().patchSettings(patch)
+      return
+    }
+    set({
+      files: files.map((f) => {
+        if (f.id !== selectedFileId) return f
+        const merged = { ...(f.settingsOverride ?? {}), ...patch }
+        // Drop keys that match the global settings to keep override minimal
+        const minimal: Partial<AutoEditSettings> = {}
+        const globalRecord = settings as unknown as Record<string, unknown>
+        const minimalRecord = minimal as unknown as Record<string, unknown>
+        for (const [key, value] of Object.entries(merged)) {
+          if (globalRecord[key] !== value) minimalRecord[key] = value
+        }
+        return { ...f, settingsOverride: Object.keys(minimal).length ? minimal : undefined }
+      })
+    })
+  },
+  applyOverrideToAll: () => {
+    const { selectedFileId, files, settings } = get()
+    if (!selectedFileId) return
+    const sel = files.find((f) => f.id === selectedFileId)
+    if (!sel?.settingsOverride) return
+    const next = { ...settings, ...sel.settingsOverride }
+    set({
+      settings: next,
+      files: files.map((f) => ({ ...f, settingsOverride: undefined }))
+    })
+    void ipc.settings.set(next)
+  },
+  resetOverride: () => {
+    const { selectedFileId, files } = get()
+    if (!selectedFileId) return
+    set({
+      files: files.map((f) => (f.id === selectedFileId ? { ...f, settingsOverride: undefined } : f))
+    })
+  },
+
   cli: { found: false, path: null, version: null, source: 'none' },
   refreshCli: async () => {
     const status = await ipc.cli.getStatus()
@@ -122,14 +204,31 @@ export const useAppStore = create<State>((set, get) => ({
   },
   setCliStatus: (status) => set({ cli: status }),
 
+  recentFiles: [],
+  loadRecent: async () => set({ recentFiles: await ipc.recent.list() }),
+  setRecentFiles: (paths) => set({ recentFiles: paths }),
+  clearRecent: async () => {
+    await ipc.recent.clear()
+    set({ recentFiles: [] })
+  },
+
   preview: { ...emptyPreview },
   startPreview: async (filePath) => {
+    // Cancel any in-flight preview so rapid slider changes don't queue up
+    // a backlog of expensive auto-editor runs.
+    const previousId = get().preview.jobId
+    if (previousId) {
+      void ipc.jobs.cancel(previousId)
+    }
+    const settings = get().effectiveSettingsFor(
+      get().files.find((f) => f.path === filePath)?.id ?? null
+    )
     set({ preview: { ...emptyPreview, filePath, running: true } })
     try {
       const { jobId } = await ipc.jobs.start({
         mode: 'preview',
         filePath,
-        settings: get().settings
+        settings
       })
       set({ preview: { ...get().preview, jobId } })
     } catch (err) {
@@ -144,12 +243,12 @@ export const useAppStore = create<State>((set, get) => ({
   },
 
   jobs: [],
-  exportRun: { jobIds: [] },
   startExport: async () => {
-    const { files, settings } = get()
+    const { files } = get()
     if (!files.length) return
     const jobIds: string[] = []
     for (const file of files) {
+      const settings = get().effectiveSettingsFor(file.id)
       try {
         const { jobId } = await ipc.jobs.start({
           mode: 'export',
@@ -161,7 +260,7 @@ export const useAppStore = create<State>((set, get) => ({
         console.error('export failed for', file.path, err)
       }
     }
-    set({ exportRun: { jobIds }, screen: 'jobs' })
+    set({ screen: 'jobs' })
     await get().hydrateJobs()
   },
   cancelJob: async (jobId) => {

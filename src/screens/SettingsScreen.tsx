@@ -89,6 +89,18 @@ export function SettingsScreen() {
       </section>
 
       <section className="card p-5">
+        <h2 className="text-sm font-semibold text-zinc-200">Güncelleme</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          Yeni sürüm var mı manuel kontrol et. App açıkken otomatik 6 saatte bir kontrol edilir.
+        </p>
+        <div className="mt-3">
+          <button className="btn-outline" onClick={() => void ipc.update.check()}>
+            Güncelleme kontrol et
+          </button>
+        </div>
+      </section>
+
+      <section className="card p-5">
         <h2 className="text-sm font-semibold text-zinc-200">Loglar</h2>
         <p className="mt-1 text-sm text-zinc-500">
           Sorun olduğunda log dosyalarını buradan açabilirsin.

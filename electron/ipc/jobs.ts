@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, Notification, app } from 'electron'
 import { runAutoEditor, SpawnHandle } from '../cli/spawn'
 import { buildArgs } from '../cli/buildArgs'
 import { ProgressEmitter, ProgressParser } from '../cli/progressParser'
@@ -202,6 +202,23 @@ function finish(
     signal: info.signal,
     errorMessage: info.errorMessage
   })
+
+  if (
+    info.status === 'completed' &&
+    entry.job.mode === 'export' &&
+    Notification.isSupported()
+  ) {
+    try {
+      const notif = new Notification({
+        title: app.name,
+        body: `${entry.job.fileName} hazır`,
+        silent: false
+      })
+      notif.show()
+    } catch {
+      /* notifications best-effort */
+    }
+  }
 }
 
 function pushRing(buf: string[], line: string): void {

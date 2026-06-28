@@ -47,7 +47,44 @@ export interface VideoFile {
   name: string
   sizeBytes: number
   addedAt: number
+  durationSeconds?: number
+  thumbnailDataUrl?: string
+  settingsOverride?: Partial<AutoEditSettings>
 }
+
+export interface Preset {
+  id: string
+  label: string
+  description: string
+  settings: Pick<AutoEditSettings, 'thresholdAudio' | 'margin' | 'smoothMincut' | 'smoothMinclip' | 'smoothEnabled'>
+}
+
+export const PRESETS: Preset[] = [
+  {
+    id: 'talking-head',
+    label: 'Konuşan kafa',
+    description: 'Tek konuşmacılı vlog / monolog. Doğal pausları korur.',
+    settings: { thresholdAudio: 0.04, margin: '0.25s', smoothMincut: '0.2s', smoothMinclip: '0.12s', smoothEnabled: true }
+  },
+  {
+    id: 'tutorial',
+    label: 'Tutorial / Eğitim',
+    description: 'Ekran kaydı + ses; uzun durakları agresif keser.',
+    settings: { thresholdAudio: 0.07, margin: '0.15s', smoothMincut: '0.15s', smoothMinclip: '0.08s', smoothEnabled: true }
+  },
+  {
+    id: 'podcast',
+    label: 'Podcast',
+    description: 'Çok konuşmacı, doğal akış; sadece uzun sessizlikleri keser.',
+    settings: { thresholdAudio: 0.03, margin: '0.35s', smoothMincut: '0.3s', smoothMinclip: '0.2s', smoothEnabled: true }
+  },
+  {
+    id: 'aggressive',
+    label: 'Çok agresif',
+    description: 'Her küçük durağı keser. Kısa içerikler için.',
+    settings: { thresholdAudio: 0.12, margin: '0.1s', smoothMincut: '0.1s', smoothMinclip: '0.05s', smoothEnabled: true }
+  }
+]
 
 export type CliSource = 'sidecar' | 'path' | 'override' | 'none'
 

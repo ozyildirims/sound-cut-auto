@@ -13,12 +13,19 @@ import {
 } from './dialogs'
 import { cancelJob, createJob, listJobs } from './jobs'
 import {
+  addRecentFiles,
+  clearRecentFiles,
   getCliOverride,
+  getRecentFiles,
   getSettings,
   setCliOverride,
   setSettings
 } from './settings'
+import { installAppMenu } from '../app-menu'
 import { locateCli } from '../cli/locate'
+import { extractThumbnail, probeDuration } from '../cli/ffmpeg'
+import { probeLevels } from '../cli/levels'
+import { checkForUpdates } from '../updater'
 import { logger } from '../util/logger'
 
 let cachedStatus: CliStatus | null = null
@@ -85,6 +92,44 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC.jobList, async () => listJobs())
+
+  ipcMain.handle(IPC.mediaProbe, async (_e, filePath: string) => {
+    return {
+      durationSeconds: probeDuration(filePath),
+      thumbnailDataUrl: extractThumbnail(filePath)
+    }
+  })
+
+  ipcMain.handle(IPC.mediaLevels, async (_e, filePath: string) => {
+    const status = await ensureCliStatus()
+    if (!status.found || !status.path) {
+      throw new Error('auto-editor binary bulunamadı.')
+    }
+    return probeLevels(status.path, filePath)
+  })
+
+  ipcMain.handle(IPC.updateCheck, async () => {
+    await checkForUpdates({ silent: false })
+  })
+
+  ipcMain.handle('recent:list', async () => getRecentFiles())
+  ipcMain.handle('recent:add', async (_e, paths: string[]) => {
+    if (!Array.isArray(paths) || !paths.length) return getRecentFiles()
+    const updated = addRecentFiles(paths.filter((p) => typeof p === 'string'))
+    installAppMenu() // refresh "Open Recent" submenu
+    for (const win of BrowserWindow.getAllWindows()) {
+      win.webContents.send(IPC.recentFilesChanged, updated)
+    }
+    return updated
+  })
+  ipcMain.handle('recent:clear', async () => {
+    clearRecentFiles()
+    installAppMenu()
+    for (const win of BrowserWindow.getAllWindows()) {
+      win.webContents.send(IPC.recentFilesChanged, [])
+    }
+    return []
+  })
 }
 
 // null = leave auto-editor's default (it picks the right extension itself)

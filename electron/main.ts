@@ -1,15 +1,31 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, nativeImage, shell } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerIpcHandlers, ensureCliStatus } from './ipc/handlers'
+import { installAppMenu } from './app-menu'
+import { setupAutoUpdater } from './updater'
 import { logger } from './util/logger'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const isDev = !app.isPackaged
 
+// Override the OS-visible name as early as possible so dev runs (which boot
+// the bare Electron binary with its own Info.plist) at least show
+// "Sound Cut Auto" in the app menu / Cmd+Tab / process listings.
+app.setName('Sound Cut Auto')
+
 let mainWindow: BrowserWindow | null = null
 
+function getIconPath(): string {
+  const iconResource = process.platform === 'win32' ? 'icon.ico' : 'icon.png'
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, iconResource)
+  }
+  return path.join(app.getAppPath(), 'resources', iconResource)
+}
+
 async function createMainWindow(): Promise<void> {
+  const iconPath = getIconPath()
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -17,6 +33,7 @@ async function createMainWindow(): Promise<void> {
     minHeight: 640,
     backgroundColor: '#0b0d10',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    icon: process.platform === 'linux' ? iconPath : undefined,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
@@ -25,6 +42,14 @@ async function createMainWindow(): Promise<void> {
       nodeIntegration: false
     }
   })
+  if (process.platform === 'darwin' && app.dock) {
+    try {
+      const img = nativeImage.createFromPath(iconPath)
+      if (!img.isEmpty()) app.dock.setIcon(img)
+    } catch (err) {
+      logger.warn('dock icon failed', err)
+    }
+  }
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
@@ -45,6 +70,8 @@ async function createMainWindow(): Promise<void> {
 
 app.whenReady().then(async () => {
   registerIpcHandlers()
+  installAppMenu()
+  setupAutoUpdater()
   void ensureCliStatus().then((status) => logger.info('cli status', status))
   await createMainWindow()
 

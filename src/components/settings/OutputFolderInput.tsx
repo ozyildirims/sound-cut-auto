@@ -1,10 +1,11 @@
 import { FolderOpen, X } from 'lucide-react'
 import { ipc } from '../../ipc/client'
 import { useAppStore } from '../../state/store'
+import { useEffectiveSettings } from '../../state/hooks'
 
 export function OutputFolderInput() {
-  const value = useAppStore((s) => s.settings.outputDir)
-  const patch = useAppStore((s) => s.patchSettings)
+  const value = useEffectiveSettings().outputDir
+  const patch = useAppStore((s) => s.patchEffective)
   return (
     <div className="space-y-2">
       <label className="label">Çıktı klasörü</label>

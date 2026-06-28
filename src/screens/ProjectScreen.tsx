@@ -1,33 +1,37 @@
 import { ArrowLeft, Play, Terminal } from 'lucide-react'
 import { FileQueue } from '../components/import/FileQueue'
 import { SettingsPanel } from '../components/settings/SettingsPanel'
+import { PresetBar } from '../components/settings/PresetBar'
+import { PerFileHeader } from '../components/settings/PerFileHeader'
 import { PreviewPanel } from '../components/preview/PreviewPanel'
+import { Waveform } from '../components/preview/Waveform'
 import { previewArgs } from '../lib/argsPreview'
 import { useAppStore } from '../state/store'
+import { useEffectiveSettings } from '../state/hooks'
 
 export function ProjectScreen() {
   const files = useAppStore((s) => s.files)
-  const settings = useAppStore((s) => s.settings)
+  const selectedId = useAppStore((s) => s.selectedFileId)
+  const selected = files.find((f) => f.id === selectedId) ?? files[0]
+  const settings = useEffectiveSettings()
   const setScreen = useAppStore((s) => s.setScreen)
   const startExport = useAppStore((s) => s.startExport)
   const cli = useAppStore((s) => s.cli)
   const patchSettings = useAppStore((s) => s.patchSettings)
+  const globalSettings = useAppStore((s) => s.settings)
 
   const cmd = previewArgs({
-    filePath: files[0]?.path ?? null,
+    filePath: selected?.path ?? null,
     settings,
     mode: 'export',
     outputPath: null
   })
 
   return (
-    <div className="grid h-full grid-cols-[minmax(260px,320px)_1fr]">
-      <aside className="flex flex-col gap-4 border-r border-edge p-5">
+    <div className="grid h-full grid-cols-[minmax(280px,340px)_1fr]">
+      <aside className="flex flex-col gap-4 border-r border-edge p-4">
         <div className="flex items-center justify-between">
-          <button
-            className="btn-ghost text-zinc-400"
-            onClick={() => setScreen('import')}
-          >
+          <button className="btn-ghost text-zinc-400" onClick={() => setScreen('import')}>
             <ArrowLeft className="h-4 w-4" /> Import
           </button>
           <span className="text-xs text-zinc-500">{files.length} dosya</span>
@@ -40,7 +44,8 @@ export function ProjectScreen() {
           <div>
             <h1 className="text-xl font-semibold text-zinc-100">Project</h1>
             <p className="text-sm text-zinc-400">
-              Ayarlar tüm kuyruğa uygulanır. Export bittiğinde dosyalar Jobs ekranında listelenir.
+              Bir hazır profil seç, ya da slider'larla ince ayar yap. Sol kuyruktan farklı bir
+              dosyaya tıklarsan ayarlar o dosya için ayrılır.
             </p>
           </div>
           <button
@@ -52,6 +57,9 @@ export function ProjectScreen() {
           </button>
         </header>
 
+        <PresetBar />
+        <PerFileHeader />
+        <Waveform />
         <SettingsPanel />
         <PreviewPanel />
 
@@ -63,13 +71,13 @@ export function ProjectScreen() {
             <label className="flex items-center gap-2 text-xs text-zinc-500">
               <input
                 type="checkbox"
-                checked={settings.devShowCommand}
+                checked={globalSettings.devShowCommand}
                 onChange={(e) => patchSettings({ devShowCommand: e.target.checked })}
               />
               dev mode
             </label>
           </div>
-          {settings.devShowCommand && (
+          {globalSettings.devShowCommand && (
             <pre className="overflow-x-auto rounded-md bg-bg-elev p-3 text-xs text-zinc-300">
               {cmd}
             </pre>

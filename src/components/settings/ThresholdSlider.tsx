@@ -1,6 +1,7 @@
 import * as Slider from '@radix-ui/react-slider'
 import { AlertTriangle } from 'lucide-react'
 import { useAppStore } from '../../state/store'
+import { useEffectiveSettings } from '../../state/hooks'
 
 const PRESETS: { label: string; pct: number }[] = [
   { label: 'Yumuşak', pct: 10 },
@@ -18,8 +19,8 @@ function thresholdToPct(threshold: number): number {
 }
 
 export function ThresholdSlider() {
-  const threshold = useAppStore((s) => s.settings.thresholdAudio)
-  const patch = useAppStore((s) => s.patchSettings)
+  const threshold = useEffectiveSettings().thresholdAudio
+  const patch = useAppStore((s) => s.patchEffective)
   const pct = thresholdToPct(threshold)
   const tooLow = pct < 8
 
@@ -68,19 +69,14 @@ export function ThresholdSlider() {
         })}
       </div>
 
-      {tooLow ? (
+      {tooLow && (
         <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-200">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
           <span>
-            Çok yumuşak — bu değerde muhtemelen <strong>hiçbir şey kesilmez</strong>. Daha
-            fazla kesim için sliderı sağa kaydır.
+            Çok yumuşak — bu değerde muhtemelen <strong>hiçbir şey kesilmez</strong>. Sliderı
+            sağa kaydır.
           </span>
         </div>
-      ) : (
-        <p className="text-xs text-zinc-500">
-          Yüksek değerler daha küçük durakları bile keser. Konuşmalı video için %20–40 iyi
-          başlangıç.
-        </p>
       )}
     </div>
   )

@@ -1,5 +1,7 @@
 import type { AutoEditSettings, CliStatus, Job, JobEvent, StartJobInput } from './types'
 
+export type Unsubscribe = () => void
+
 export interface AutocutApi {
   cli: {
     getStatus: () => Promise<CliStatus>
@@ -25,7 +27,26 @@ export interface AutocutApi {
     start: (input: StartJobInput) => Promise<{ jobId: string }>
     cancel: (jobId: string) => Promise<void>
     list: () => Promise<Job[]>
-    onEvent: (cb: (event: JobEvent) => void) => () => void
+    onEvent: (cb: (event: JobEvent) => void) => Unsubscribe
+  }
+  media: {
+    probe: (filePath: string) => Promise<{ durationSeconds: number | null; thumbnailDataUrl: string | null }>
+    levels: (filePath: string) => Promise<{ values: number[]; totalPoints: number; suggestedThreshold: number }>
+  }
+  update: {
+    check: () => Promise<void>
+  }
+  recent: {
+    list: () => Promise<string[]>
+    add: (paths: string[]) => Promise<string[]>
+    clear: () => Promise<string[]>
+    onChanged: (cb: (paths: string[]) => void) => Unsubscribe
+  }
+  menu: {
+    onNavigate: (cb: (screen: string) => void) => Unsubscribe
+    onFilesAdded: (cb: (paths: string[]) => void) => Unsubscribe
+    onTriggerPreview: (cb: () => void) => Unsubscribe
+    onTriggerExport: (cb: () => void) => Unsubscribe
   }
   platform: 'aix' | 'android' | 'darwin' | 'freebsd' | 'haiku' | 'linux' | 'openbsd' | 'sunos' | 'win32' | 'cygwin' | 'netbsd'
 }

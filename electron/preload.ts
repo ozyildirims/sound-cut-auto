@@ -49,6 +49,45 @@ const api: AutocutApi = {
       return () => ipcRenderer.removeListener(IPC.jobEvent, handler)
     }
   },
+  media: {
+    probe: (filePath: string) => invoke(IPC.mediaProbe, filePath),
+    levels: (filePath: string) => invoke(IPC.mediaLevels, filePath)
+  },
+  update: {
+    check: () => invoke(IPC.updateCheck)
+  },
+  recent: {
+    list: () => ipcRenderer.invoke('recent:list') as Promise<string[]>,
+    add: (paths: string[]) => ipcRenderer.invoke('recent:add', paths) as Promise<string[]>,
+    clear: () => ipcRenderer.invoke('recent:clear') as Promise<string[]>,
+    onChanged: (cb: (paths: string[]) => void) => {
+      const handler = (_e: IpcRendererEvent, paths: string[]) => cb(paths)
+      ipcRenderer.on(IPC.recentFilesChanged, handler)
+      return () => ipcRenderer.removeListener(IPC.recentFilesChanged, handler)
+    }
+  },
+  menu: {
+    onNavigate: (cb: (screen: string) => void) => {
+      const handler = (_e: IpcRendererEvent, screen: string) => cb(screen)
+      ipcRenderer.on(IPC.menuNavigate, handler)
+      return () => ipcRenderer.removeListener(IPC.menuNavigate, handler)
+    },
+    onFilesAdded: (cb: (paths: string[]) => void) => {
+      const handler = (_e: IpcRendererEvent, paths: string[]) => cb(paths)
+      ipcRenderer.on(IPC.menuFilesAdded, handler)
+      return () => ipcRenderer.removeListener(IPC.menuFilesAdded, handler)
+    },
+    onTriggerPreview: (cb: () => void) => {
+      const handler = () => cb()
+      ipcRenderer.on(IPC.menuTriggerPreview, handler)
+      return () => ipcRenderer.removeListener(IPC.menuTriggerPreview, handler)
+    },
+    onTriggerExport: (cb: () => void) => {
+      const handler = () => cb()
+      ipcRenderer.on(IPC.menuTriggerExport, handler)
+      return () => ipcRenderer.removeListener(IPC.menuTriggerExport, handler)
+    }
+  },
   platform: process.platform
 }
 

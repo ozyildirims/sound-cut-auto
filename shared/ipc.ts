@@ -26,7 +26,19 @@ export const IPC = {
   jobStart: 'job:start',
   jobCancel: 'job:cancel',
   jobList: 'job:list',
-  jobEvent: 'job:event'
+  jobEvent: 'job:event',
+
+  mediaProbe: 'media:probe',
+  mediaLevels: 'media:levels',
+
+  updateCheck: 'update:check',
+
+  // one-way main → renderer events (no request/response, just `send`)
+  menuNavigate: 'menu:navigate',
+  menuFilesAdded: 'menu:files-added',
+  menuTriggerPreview: 'menu:trigger-preview',
+  menuTriggerExport: 'menu:trigger-export',
+  recentFilesChanged: 'recent:changed'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -46,6 +58,9 @@ export interface IpcContract {
   [IPC.jobStart]: { request: StartJobInput; response: { jobId: string } }
   [IPC.jobCancel]: { request: string; response: void }
   [IPC.jobList]: { request: void; response: Job[] }
+  [IPC.mediaProbe]: { request: string; response: { durationSeconds: number | null; thumbnailDataUrl: string | null } }
+  [IPC.mediaLevels]: { request: string; response: { values: number[]; totalPoints: number; suggestedThreshold: number } }
+  [IPC.updateCheck]: { request: void; response: void }
 }
 
 export type JobEventPayload = JobEvent

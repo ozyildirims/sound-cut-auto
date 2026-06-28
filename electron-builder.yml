@@ -52,3 +52,9 @@ nsis:
   artifactName: "${productName}-Setup-${version}.${ext}"
 
 afterSign: build/notarize.cjs
+
+publish:
+  provider: github
+  owner: ozyildirims
+  repo: sound-cut-auto
+  releaseType: release

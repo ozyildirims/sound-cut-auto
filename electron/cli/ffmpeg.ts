@@ -107,5 +107,58 @@ export function applyRotationMetadata(
   })
 }
 
+export function probeDuration(filePath: string): number | null {
+  const { ffprobe } = locateFfmpegTools()
+  if (!ffprobe) return null
+  const result = spawnSync(
+    ffprobe,
+    [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      filePath
+    ],
+    { encoding: 'utf-8', timeout: 10000 }
+  )
+  if (result.status !== 0) return null
+  const n = parseFloat(result.stdout.trim())
+  return Number.isFinite(n) ? n : null
+}
+
+export function extractThumbnail(filePath: string, atSeconds = 0.5, width = 160): string | null {
+  const { ffmpeg } = locateFfmpegTools()
+  if (!ffmpeg) return null
+  const result = spawnSync(
+    ffmpeg,
+    [
+      '-loglevel', 'error',
+      '-ss', String(atSeconds),
+      '-i', filePath,
+      '-vframes', '1',
+      '-vf', `scale=${width}:-1`,
+      '-f', 'image2pipe',
+      '-c:v', 'mjpeg',
+      '-'
+    ],
+    { encoding: 'buffer', timeout: 15000, maxBuffer: 8 * 1024 * 1024 }
+  )
+  if (result.status !== 0 || !result.stdout || result.stdout.length === 0) return null
+  return 'data:image/jpeg;base64,' + Buffer.from(result.stdout).toString('base64')
+}
+
+export interface MediaInfo {
+  durationSeconds: number | null
+  thumbnailDataUrl: string | null
+  rotation: number
+}
+
+export function probeMedia(filePath: string): MediaInfo {
+  return {
+    durationSeconds: probeDuration(filePath),
+    thumbnailDataUrl: extractThumbnail(filePath),
+    rotation: probeRotation(filePath).rotation
+  }
+}
+
 // app reference kept so this module can be imported safely before app ready
 void app
