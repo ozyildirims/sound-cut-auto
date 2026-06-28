@@ -9,3 +9,4 @@ release
 resources/bin
 .env
 .env.local
+*.tsbuildinfo
