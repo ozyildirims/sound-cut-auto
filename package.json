@@ -1,7 +1,7 @@
 {
-  "name": "autocut-ui",
+  "name": "sound-cut-auto",
   "version": "0.1.0",
-  "description": "Cross-platform desktop UI for the auto-editor CLI",
+  "description": "Sound Cut Auto — desktop app that cuts silence out of video and exports to mp4, Premiere, FCP, DaVinci and more",
   "main": "out/main/index.js",
   "private": true,
   "author": "Umut Ozyildirim",

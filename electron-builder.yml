@@ -1,5 +1,5 @@
-appId: dev.umut.autocut-ui
-productName: autocut-ui
+appId: dev.umut.sound-cut-auto
+productName: Sound Cut Auto
 copyright: Copyright © 2026 Umut Ozyildirim
 asar: true
 artifactName: "${productName}-${version}-${os}-${arch}.${ext}"

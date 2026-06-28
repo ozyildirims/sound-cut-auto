@@ -7,7 +7,7 @@ interface PersistedSchema {
 }
 
 const store = new Store<PersistedSchema>({
-  name: 'autocut-ui-config',
+  name: 'sound-cut-auto-config',
   defaults: {
     settings: DEFAULT_SETTINGS,
     cliOverride: null

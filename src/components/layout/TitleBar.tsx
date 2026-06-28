@@ -8,7 +8,7 @@ export function TitleBar() {
         isMac ? 'h-9 pl-20' : 'h-10'
       }`}
     >
-      <span className="text-xs uppercase tracking-[0.18em] text-zinc-500">autocut-ui</span>
+      <span className="text-xs uppercase tracking-[0.18em] text-zinc-500">Sound Cut Auto</span>
     </div>
   )
 }
