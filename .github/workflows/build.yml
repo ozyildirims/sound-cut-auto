@@ -7,6 +7,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write   # needed for electron-builder to publish a release on tag pushes
+
 jobs:
   build:
     name: ${{ matrix.os }}
