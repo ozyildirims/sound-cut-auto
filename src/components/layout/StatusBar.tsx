@@ -11,7 +11,7 @@ export function StatusBar() {
   const running = jobs.filter((j) => j.status === 'running' || j.status === 'queued').length
 
   return (
-    <footer className="flex h-7 items-center gap-3 border-t border-edge-subtle bg-bg-zenith/70 px-4 text-2xs text-text-muted backdrop-blur">
+    <footer className="surface-glass flex h-7 items-center gap-3 border-t border-edge-subtle px-4 text-2xs text-text-muted">
       <span className="flex items-center gap-1.5">
         <FileVideo className="h-3 w-3" /> {files.length} dosya
       </span>

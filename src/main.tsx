@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { App } from './App'
 import { ErrorBoundary } from './components/system/ErrorBoundary'
+import { ThemeProvider } from './theme/ThemeProvider'
 import { ipc } from './ipc/client'
 import './styles/globals.css'
 
@@ -35,7 +36,9 @@ window.addEventListener('unhandledrejection', (e) => {
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </ErrorBoundary>
   </React.StrictMode>
 )
