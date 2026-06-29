@@ -93,24 +93,33 @@ export function Toolbar({ onCommandPalette }: Props) {
   )
 }
 
-// Mini sound-wave brandmark — bars subtly breathe so the UI feels alive
-// without distracting from work.
+// "The Cut" — asymmetric sound wave with a diagonal cut line through it.
+// Reads at 24px, conceptually unique to this product.
 function BrandMark() {
-  const bars = [0.5, 0.85, 1.0, 0.7, 0.55]
   return (
-    <div className="flex h-6 w-6 items-center justify-center rounded-md accent-gradient shadow-glow">
-      <div className="flex items-end gap-[1.5px]">
-        {bars.map((h, i) => (
-          <span
-            key={i}
-            className="block w-[2px] origin-bottom rounded-full bg-bg-zenith/85 animate-breathe"
-            style={{
-              height: `${h * 12}px`,
-              animationDelay: `${i * 120}ms`
-            }}
-          />
-        ))}
-      </div>
+    <div
+      className="relative h-7 w-7 overflow-hidden rounded-[8px]
+                 bg-gradient-to-br from-[rgb(8_27_45)] to-[rgb(11_38_62)]
+                 shadow-[inset_0_0_0_1px_rgb(6_182_212_/_0.32),0_0_18px_-4px_rgb(6_182_212_/_0.45)]"
+    >
+      <svg viewBox="0 0 28 28" className="absolute inset-0">
+        <path
+          d="M 4 14 Q 7 8, 10 14 T 14 14 Q 17 18, 20 14 T 24 14"
+          stroke="rgb(34 211 238)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          fill="none"
+          strokeOpacity="0.95"
+        />
+        <line
+          x1="14.5" y1="5" x2="13.5" y2="23"
+          stroke="rgb(34 211 238)"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          strokeDasharray="2 2"
+          strokeOpacity="0.75"
+        />
+      </svg>
     </div>
   )
 }

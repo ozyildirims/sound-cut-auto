@@ -7,74 +7,86 @@
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────────────────
-   Theme tokens stored as RGB triplets so Tailwind utilities
-   like `bg-accent/15` and `border-accent/60` resolve through
-   `rgb(var(--token) / <alpha>)` without breaking on opacity.
+   "Inkwell" — plasma cyan on graphite / cool paper.
+   Cyan because that's the color of waveforms on every
+   scope screen since 1955; refined enough for a pro tool.
    ───────────────────────────────────────────────────────── */
 
 @layer base {
   :root,
   [data-theme='dark'] {
     color-scheme: dark;
-    --bg-zenith: 8 8 10;
-    --bg-base: 14 14 17;
-    --bg-surface: 22 22 27;
-    --bg-elev: 29 29 34;
-    --bg-elev2: 37 37 43;
-    --edge: 42 42 50;
-    --edge-subtle: 28 28 34;
-    --edge-strong: 58 58 68;
-    --text-primary: 245 245 244;
-    --text-secondary: 161 161 170;
-    --text-muted: 113 113 122;
-    --text-disabled: 68 68 74;
-    --accent: 245 185 66;
-    --accent-muted: 193 153 56;
-    --critical: 248 113 113;
-    --success: 74 222 128;
+    /* Surfaces — graphite with cool-blue undertone */
+    --bg-zenith: 6 7 10;
+    --bg-base: 11 13 18;
+    --bg-surface: 17 20 26;
+    --bg-elev: 23 27 35;
+    --bg-elev2: 30 35 44;
+
+    /* Edges */
+    --edge: 42 48 60;
+    --edge-subtle: 24 28 36;
+    --edge-strong: 60 68 82;
+
+    /* Type — warm-cool balanced */
+    --text-primary: 240 244 250;
+    --text-secondary: 165 172 185;
+    --text-muted: 110 118 132;
+    --text-disabled: 65 70 80;
+
+    /* Accent — plasma cyan #06B6D4 */
+    --accent: 6 182 212;
+    --accent-muted: 14 165 233;
+
+    /* Semantic */
+    --critical: 244 63 94;
+    --success: 52 211 153;
     --warning: 251 191 36;
-    --bg-gradient-from: #08080a;
-    --bg-gradient-to: #11111a;
-    --ambient-glow: radial-gradient(60% 50% at 50% 0%, rgba(245, 185, 66, 0.06) 0%, transparent 70%);
-    --glass: rgba(22, 22, 27, 0.62);
+
+    --bg-gradient-from: #06070A;
+    --bg-gradient-to: #0E1320;
+    --ambient-glow: radial-gradient(60% 50% at 50% 0%, rgb(6 182 212 / 0.07) 0%, transparent 70%);
+    --glass: rgba(11, 13, 18, 0.58);
   }
 
   [data-theme='light'] {
     color-scheme: light;
-    --bg-zenith: 250 250 246;
-    --bg-base: 245 245 239;
+    --bg-zenith: 247 249 252;
+    --bg-base: 240 244 250;
     --bg-surface: 255 255 255;
-    --bg-elev: 251 251 246;
-    --bg-elev2: 243 243 237;
-    --edge: 229 229 221;
-    --edge-subtle: 237 237 234;
-    --edge-strong: 207 207 199;
-    --text-primary: 24 24 27;
-    --text-secondary: 82 82 91;
-    --text-muted: 138 138 133;
-    --text-disabled: 196 196 191;
-    --accent: 193 138 29;
-    --accent-muted: 160 116 21;
+    --bg-elev: 250 252 254;
+    --bg-elev2: 234 240 247;
+
+    --edge: 218 226 237;
+    --edge-subtle: 234 240 247;
+    --edge-strong: 196 206 220;
+
+    --text-primary: 13 18 30;
+    --text-secondary: 78 90 108;
+    --text-muted: 130 142 160;
+    --text-disabled: 200 208 220;
+
+    --accent: 14 116 144;
+    --accent-muted: 8 145 178;
+
     --critical: 220 38 38;
     --success: 22 163 74;
-    --warning: 202 138 4;
-    --bg-gradient-from: #fbfbf5;
-    --bg-gradient-to: #ededea;
-    --ambient-glow: radial-gradient(60% 50% at 50% 0%, rgba(193, 138, 29, 0.07) 0%, transparent 70%);
+    --warning: 217 119 6;
+
+    --bg-gradient-from: #FBFCFE;
+    --bg-gradient-to: #ECF1F7;
+    --ambient-glow: radial-gradient(60% 50% at 50% 0%, rgb(14 116 144 / 0.05) 0%, transparent 70%);
     --glass: rgba(255, 255, 255, 0.72);
   }
 
-  html,
-  body,
-  #root {
-    height: 100%;
-  }
+  html, body, #root { height: 100%; }
 
   body {
     margin: 0;
     font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont,
-      'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
+      'SF Pro Display', system-ui, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01', 'calt';
+    font-variation-settings: 'opsz' 14;
     background: linear-gradient(180deg, var(--bg-gradient-from) 0%, var(--bg-gradient-to) 100%);
     color: rgb(var(--text-primary));
     -webkit-font-smoothing: antialiased;
@@ -90,20 +102,14 @@
     z-index: 0;
   }
 
-  #root {
-    position: relative;
-    z-index: 1;
-  }
+  #root { position: relative; z-index: 1; }
 
   ::selection {
-    background: rgb(var(--accent) / 0.20);
+    background: rgb(var(--accent) / 0.22);
     color: rgb(var(--text-primary));
   }
 
-  ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb {
     background: rgb(var(--edge-strong));
     border-radius: 999px;
@@ -119,26 +125,81 @@
 .drag-region { -webkit-app-region: drag; }
 .no-drag { -webkit-app-region: no-drag; }
 
+/* ── Components ─────────────────────────────────────────── */
+
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-fast ease-out;
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium;
+    transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
   }
   .btn-primary {
-    @apply btn bg-gradient-to-b from-accent to-accent-muted text-bg-zenith hover:shadow-glow disabled:opacity-40 disabled:cursor-not-allowed;
+    color: white;
+    background: linear-gradient(to bottom, rgb(var(--accent)), rgb(var(--accent-muted)));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.18),
+      0 1px 0 rgb(0 0 0 / 0.12),
+      0 0 0 1px rgb(var(--accent) / 0.45),
+      0 0 24px -4px rgb(var(--accent) / 0.55);
+    @apply btn;
+  }
+  .btn-primary:hover:not(:disabled) {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.22),
+      0 2px 8px rgb(var(--accent) / 0.35),
+      0 0 0 1px rgb(var(--accent) / 0.65),
+      0 0 32px -2px rgb(var(--accent) / 0.7);
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0.5px);
+    transition-duration: 75ms;
+  }
+  .btn-primary:disabled {
+    opacity: 0.4;
+    box-shadow: none;
+    cursor: not-allowed;
   }
   .btn-ghost {
-    @apply btn text-text-secondary hover:text-text-primary hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply btn text-text-secondary;
   }
+  .btn-ghost:hover:not(:disabled) {
+    color: rgb(var(--text-primary));
+    background: rgb(var(--text-primary) / 0.06);
+  }
+  .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-outline {
-    @apply btn border border-edge text-text-primary hover:bg-white/5 hover:border-edge-strong disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply btn text-text-primary;
+    border: 1px solid rgb(var(--edge));
   }
+  .btn-outline:hover:not(:disabled) {
+    background: rgb(var(--text-primary) / 0.04);
+    border-color: rgb(var(--edge-strong));
+  }
+  .btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
+
   .card {
-    @apply rounded-lg border border-edge bg-bg-surface;
+    border-radius: 14px;
+    background: rgb(var(--bg-surface));
+    border: 1px solid rgb(var(--edge-subtle));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.03),
+      0 1px 2px rgb(0 0 0 / 0.2),
+      0 8px 24px rgb(0 0 0 / 0.16);
   }
+  [data-theme='light'] .card {
+    box-shadow:
+      0 0 0 1px rgb(13 18 30 / 0.04),
+      0 1px 2px rgb(13 18 30 / 0.04),
+      0 8px 24px rgb(13 18 30 / 0.06);
+  }
+
   .input {
-    @apply h-9 w-full rounded-md border border-edge bg-bg-elev2 px-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none transition-colors duration-fast;
+    @apply h-9 w-full rounded-md px-3 text-sm text-text-primary placeholder:text-text-muted;
+    background: rgb(var(--bg-elev2));
+    border: 1px solid rgb(var(--edge));
+    transition: border-color 150ms, box-shadow 150ms;
   }
   .input:focus {
+    outline: none;
     border-color: rgb(var(--accent) / 0.6);
     box-shadow: 0 0 0 2px rgb(var(--accent) / 0.3);
   }
@@ -147,14 +208,16 @@
   }
 }
 
+/* ── Utilities ──────────────────────────────────────────── */
+
 @layer utilities {
   .text-display {
-    font-feature-settings: 'cv02', 'cv03', 'ss01';
-    letter-spacing: -0.02em;
+    font-feature-settings: 'cv02', 'cv03', 'ss01', 'calt';
+    letter-spacing: -0.025em;
   }
   .text-display-tight {
-    letter-spacing: -0.025em;
-    font-feature-settings: 'ss01', 'cv11';
+    letter-spacing: -0.035em;
+    font-feature-settings: 'ss01', 'cv11', 'calt';
   }
   .text-micro {
     font-size: 10px;
@@ -175,10 +238,17 @@
   }
   .surface-glass {
     background: var(--glass);
-    backdrop-filter: saturate(160%) blur(20px);
-    -webkit-backdrop-filter: saturate(160%) blur(20px);
+    backdrop-filter: saturate(180%) blur(24px);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
   }
   .accent-gradient {
     background: linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-muted)) 100%);
   }
+}
+
+/* ── Signature: scope ping ──────────────────────────────── */
+
+@keyframes scope-ping {
+  0%   { r: 1;  opacity: 0.9; stroke-width: 1.2; }
+  100% { r: 14; opacity: 0;   stroke-width: 0.2; }
 }
