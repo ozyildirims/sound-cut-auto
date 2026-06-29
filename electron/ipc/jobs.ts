@@ -129,7 +129,10 @@ function startEntry(entry: RegistryEntry, binary: string, input: StartJobInput):
   // auto-editor's re-encode drops the display matrix on iPhone-style videos.
   // Only meaningful when we actually re-encode a video (the 'default' format);
   // other export modes write XML/JSON/audio where rotation tags don't apply.
-  const isVideoRender = input.mode === 'export' && input.settings.exportFormat === 'default'
+  // Post-process (rotation / social aspect / cover) only makes sense for real
+  // video re-encodes; XML/JSON/audio exports skip it entirely.
+  const VIDEO_FORMATS = new Set(['mp4-h264', 'mp4-h265', 'mov-h264', 'mov-prores', 'mkv-h264', 'webm-vp9', 'default'])
+  const isVideoRender = input.mode === 'export' && VIDEO_FORMATS.has(input.settings.exportFormat as string)
   const inputRotation = isVideoRender ? probeRotation(input.filePath).rotation : 0
   const inputDuration = isVideoRender ? (probeDuration(input.filePath) ?? 0) : 0
   const socialSpec = getSocialPreset(input.settings.socialPreset)

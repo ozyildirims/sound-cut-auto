@@ -157,14 +157,22 @@ export function registerIpcHandlers(): void {
 
 // null = leave auto-editor's default (it picks the right extension itself)
 const FORMAT_EXTENSION: Record<ExportFormat, string | null> = {
-  default: null,
+  'mp4-h264': '.mp4',
+  'mp4-h265': '.mp4',
+  'mov-h264': '.mov',
+  'mov-prores': '.mov',
+  'mkv-h264': '.mkv',
+  'webm-vp9': '.webm',
+  'audio-m4a': '.m4a',
+  'audio-mp3': '.mp3',
+  'audio-wav': '.wav',
   premiere: '.xml',
   'final-cut-pro': '.fcpxml',
   resolve: '.xml',
   shotcut: '.mlt',
   json: '.json',
-  audio: '.m4a',
-  'clip-sequence': null
+  'clip-sequence': null,
+  default: null
 }
 
 function resolveOutputPath(input: StartJobInput): string | undefined {

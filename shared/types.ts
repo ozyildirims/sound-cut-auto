@@ -1,22 +1,49 @@
 export type ExportFormat =
-  | 'default'
+  // Video — container × codec
+  | 'mp4-h264'
+  | 'mp4-h265'
+  | 'mov-h264'
+  | 'mov-prores'      // After Effects / FCP for color/grading
+  | 'mkv-h264'
+  | 'webm-vp9'
+  // Audio only
+  | 'audio-m4a'
+  | 'audio-mp3'
+  | 'audio-wav'
+  // Timeline interchange
   | 'premiere'
   | 'final-cut-pro'
   | 'resolve'
   | 'shotcut'
   | 'json'
-  | 'audio'
+  // Clip sequence (a folder of trimmed clips)
   | 'clip-sequence'
+  // Legacy alias preserved so persisted settings from old builds still resolve
+  | 'default'
 
-export const EXPORT_FORMATS: { value: ExportFormat; label: string; description: string }[] = [
-  { value: 'default', label: 'Video (mp4/mov)', description: 'Standart yeniden kodlanmış video çıktısı' },
-  { value: 'premiere', label: 'Premiere Pro XML', description: 'Premiere Pro\'ya import edilebilir timeline XML' },
-  { value: 'final-cut-pro', label: 'Final Cut Pro XML', description: 'FCP XML formatı' },
-  { value: 'resolve', label: 'DaVinci Resolve XML', description: 'Resolve XML formatı' },
-  { value: 'shotcut', label: 'Shotcut MLT', description: 'Shotcut MLT proje formatı' },
-  { value: 'json', label: 'JSON timeline', description: 'auto-editor JSON v3 timeline' },
-  { value: 'audio', label: 'Audio only', description: 'Sadece ses (m4a/mp3)' },
-  { value: 'clip-sequence', label: 'Clip sequence', description: 'Her klip ayrı dosya olarak' }
+export interface ExportFormatSpec {
+  value: ExportFormat
+  group: 'video' | 'audio' | 'timeline' | 'sequence'
+  label: string
+  description: string
+}
+
+export const EXPORT_FORMATS: ExportFormatSpec[] = [
+  { value: 'mp4-h264',     group: 'video',    label: 'MP4 (H.264)',          description: 'En yaygın · sosyal medya, web, telefon' },
+  { value: 'mp4-h265',     group: 'video',    label: 'MP4 (H.265/HEVC)',     description: 'Yarı boyut, modern cihazlar' },
+  { value: 'mov-h264',     group: 'video',    label: 'MOV (H.264)',          description: 'Apple araçları için QuickTime' },
+  { value: 'mov-prores',   group: 'video',    label: 'MOV (ProRes 422)',     description: 'After Effects / FCP renk çalışması' },
+  { value: 'mkv-h264',     group: 'video',    label: 'MKV (H.264)',          description: 'Açık konteyner' },
+  { value: 'webm-vp9',     group: 'video',    label: 'WebM (VP9)',           description: 'Web / open codec' },
+  { value: 'audio-m4a',    group: 'audio',    label: 'Sadece ses — M4A',     description: 'AAC, küçük boyut' },
+  { value: 'audio-mp3',    group: 'audio',    label: 'Sadece ses — MP3',     description: 'Evrensel ses formatı' },
+  { value: 'audio-wav',    group: 'audio',    label: 'Sadece ses — WAV',     description: 'Sıkıştırmasız, max kalite' },
+  { value: 'premiere',     group: 'timeline', label: 'Premiere Pro XML',     description: 'Premiere Pro\'ya import' },
+  { value: 'final-cut-pro',group: 'timeline', label: 'Final Cut Pro XML',    description: 'FCP XML formatı' },
+  { value: 'resolve',      group: 'timeline', label: 'DaVinci Resolve XML',  description: 'Resolve XML' },
+  { value: 'shotcut',      group: 'timeline', label: 'Shotcut MLT',          description: 'Shotcut proje' },
+  { value: 'json',         group: 'timeline', label: 'JSON timeline',        description: 'auto-editor JSON v3' },
+  { value: 'clip-sequence',group: 'sequence', label: 'Klip sırası (klasör)', description: 'Her cut ayrı dosya' }
 ]
 
 export type SocialPreset = 'instagram-reel' | 'tiktok' | 'youtube-shorts'
@@ -65,7 +92,7 @@ export const DEFAULT_SETTINGS: AutoEditSettings = {
   smoothMincut: '0.2s',
   smoothMinclip: '0.1s',
   smoothEnabled: true,
-  exportFormat: 'default',
+  exportFormat: 'mp4-h264',
   outputDir: null,
   devShowCommand: false,
   socialPreset: null,
