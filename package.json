@@ -1,6 +1,6 @@
 {
   "name": "sound-cut-auto",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "Sound Cut Auto — desktop app that cuts silence out of video and exports to mp4, Premiere, FCP, DaVinci and more",
   "main": "out/main/index.js",
   "private": true,
