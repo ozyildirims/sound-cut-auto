@@ -1,11 +1,17 @@
-import { useEffect } from 'react'
-import { Sidebar } from './components/layout/Sidebar'
-import { TitleBar } from './components/layout/TitleBar'
+import { useEffect, useState } from 'react'
+import { Toolbar } from './components/layout/Toolbar'
+import { LeftRail } from './components/layout/LeftRail'
+import { CenterStage } from './components/layout/CenterStage'
+import { Inspector } from './components/layout/Inspector'
+import { StatusBar } from './components/layout/StatusBar'
 import { CliMissingBanner } from './components/system/CliMissingBanner'
-import { ImportScreen } from './screens/ImportScreen'
-import { ProjectScreen } from './screens/ProjectScreen'
-import { JobsScreen } from './screens/JobsScreen'
-import { SettingsScreen } from './screens/SettingsScreen'
+import { Toaster } from './components/system/Toaster'
+import { CommandPalette } from './components/system/CommandPalette'
+import { ImportContent } from './screens/ImportContent'
+import { ProjectCenter } from './screens/ProjectCenter'
+import { ProjectInspector } from './screens/ProjectInspector'
+import { JobsContent } from './screens/JobsContent'
+import { SettingsContent } from './screens/SettingsContent'
 import { ipc } from './ipc/client'
 import { useAppStore, type Screen } from './state/store'
 
@@ -24,6 +30,7 @@ export function App() {
   const addFiles = useAppStore((s) => s.addFiles)
   const startExport = useAppStore((s) => s.startExport)
   const startPreview = useAppStore((s) => s.startPreview)
+  const [paletteOpen, setPaletteOpen] = useState(false)
 
   useEffect(() => {
     void loadSettings()
@@ -67,17 +74,25 @@ export function App() {
 
   return (
     <div className="flex h-full flex-col">
-      <TitleBar />
+      <Toolbar onCommandPalette={() => setPaletteOpen(true)} />
       <CliMissingBanner />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-auto">
-          {screen === 'import' && <ImportScreen />}
-          {screen === 'project' && <ProjectScreen />}
-          {screen === 'jobs' && <JobsScreen />}
-          {screen === 'settings' && <SettingsScreen />}
-        </main>
+        <LeftRail />
+        <CenterStage>
+          {screen === 'import' && <ImportContent />}
+          {screen === 'project' && <ProjectCenter />}
+          {screen === 'jobs' && <JobsContent />}
+          {screen === 'settings' && <SettingsContent />}
+        </CenterStage>
+        {screen === 'project' && (
+          <Inspector>
+            <ProjectInspector />
+          </Inspector>
+        )}
       </div>
+      <StatusBar />
+      <Toaster />
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
   )
 }
