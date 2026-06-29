@@ -116,7 +116,15 @@ export function registerIpcHandlers(): void {
   )
 
   ipcMain.handle(IPC.mediaEnsureProxy, async (_e, filePath: string) => {
-    return ensureProxy(filePath)
+    logger.info('media:ensure-proxy start', { filePath })
+    try {
+      const out = await ensureProxy(filePath)
+      logger.info('media:ensure-proxy ok', { filePath, out })
+      return out
+    } catch (err) {
+      logger.error('media:ensure-proxy failed', { filePath, err })
+      throw err
+    }
   })
 
   ipcMain.handle(IPC.updateCheck, async () => {
