@@ -5,7 +5,14 @@ import { runAutoEditor, SpawnHandle } from '../cli/spawn'
 import { buildArgs } from '../cli/buildArgs'
 import { ProgressEmitter, ProgressParser } from '../cli/progressParser'
 import { parseStats } from '../cli/statsParser'
-import { applyRotationMetadata, probeRotation } from '../cli/ffmpeg'
+import {
+  applyRotationMetadata,
+  applySocialPass,
+  extractCoverJpeg,
+  probeDuration,
+  probeRotation
+} from '../cli/ffmpeg'
+import { getSocialPreset } from '@shared/types'
 import { logger } from '../util/logger'
 import { IPC } from '@shared/ipc'
 import type { Job, JobEvent, JobMode, JobStatus, StartJobInput } from '@shared/types'
@@ -124,47 +131,111 @@ function startEntry(entry: RegistryEntry, binary: string, input: StartJobInput):
   // other export modes write XML/JSON/audio where rotation tags don't apply.
   const isVideoRender = input.mode === 'export' && input.settings.exportFormat === 'default'
   const inputRotation = isVideoRender ? probeRotation(input.filePath).rotation : 0
+  const inputDuration = isVideoRender ? (probeDuration(input.filePath) ?? 0) : 0
+  const socialSpec = getSocialPreset(input.settings.socialPreset)
+  const wantsAspect = isVideoRender && !!socialSpec && input.settings.aspectMode && input.settings.aspectMode !== 'none'
+  const wantsLoudness = isVideoRender && input.settings.loudnessTarget != null
+  const wantsCover = isVideoRender && !!input.settings.exportCover && !!input.outputPath
+  const coverPath = wantsCover && input.outputPath
+    ? input.outputPath.replace(/\.[^.]+$/, '') + '_cover.jpg'
+    : null
+  const coverTime = (() => {
+    if (!wantsCover) return 0
+    const requested = input.coverTimeSeconds
+    if (requested != null && requested > 0) return requested
+    if (inputDuration > 0) return inputDuration * 0.1
+    return 0.5
+  })()
 
   const handle = runAutoEditor(binary, args, {
     onStdout: (line) => handleLine(entry, 'stdout', line, input.mode),
     onStderr: (line) => handleLine(entry, 'stderr', line, input.mode),
-    onExit: ({ code, signal, error }) => {
+    onExit: async ({ code, signal, error }) => {
       entry.emitter.flush()
       if (input.mode === 'preview' && entry.rawText) {
         const stats = parseStats(entry.rawText)
         broadcast({ type: 'stats', jobId: entry.job.id, stats })
       }
-      const status: JobStatus = error
+      let status: JobStatus = error
         ? 'failed'
         : code === 0
           ? 'completed'
           : signal
             ? 'cancelled'
             : 'failed'
+      let postError: string | undefined
 
-      const finalize = (errorMessage?: string) => {
-        finish(entry, { status, exitCode: code, signal, errorMessage: errorMessage ?? error?.message })
+      const finalize = () => {
+        finish(entry, { status, exitCode: code, signal, errorMessage: postError ?? error?.message })
         currentRunningId = null
         void drain({ binary, input })
       }
 
-      if (status === 'completed' && isVideoRender && input.outputPath && inputRotation !== 0) {
-        applyRotationMetadata(input.outputPath, inputRotation)
-          .then(() => {
-            logger.info('rotation metadata applied', { jobId: entry.job.id, degrees: inputRotation })
-            finalize()
-          })
-          .catch((err) => {
-            logger.error('rotation post-process failed', err)
-            // Don't fail the job — the cut video is still usable, just not auto-rotated.
-            finalize()
-          })
-      } else {
-        finalize()
+      if (status !== 'completed' || !isVideoRender || !input.outputPath) {
+        return finalize()
       }
+
+      try {
+        await runPostProcessChain([
+          {
+            name: 'rotation',
+            shouldRun: inputRotation !== 0,
+            critical: false,
+            run: () => applyRotationMetadata(input.outputPath!, inputRotation)
+          },
+          {
+            name: 'social',
+            shouldRun: !!(wantsAspect || wantsLoudness),
+            critical: true,
+            run: () =>
+              applySocialPass(input.outputPath!, {
+                aspect: wantsAspect && socialSpec
+                  ? {
+                      mode: input.settings.aspectMode as Exclude<typeof input.settings.aspectMode, 'none' | undefined>,
+                      width: socialSpec.outputWidth,
+                      height: socialSpec.outputHeight
+                    }
+                  : null,
+                loudness: wantsLoudness ? { target: input.settings.loudnessTarget! } : null
+              })
+          },
+          {
+            name: 'cover',
+            shouldRun: !!(wantsCover && coverPath),
+            critical: false,
+            run: () => extractCoverJpeg(input.outputPath!, coverTime, coverPath!)
+          }
+        ], entry.job.id)
+      } catch (err) {
+        status = 'failed'
+        postError = err instanceof Error ? err.message : String(err)
+        logger.error('post-process critical step failed', err)
+      }
+      finalize()
     }
   })
   entry.handle = handle
+}
+
+interface PostStep {
+  name: string
+  shouldRun: boolean
+  critical: boolean
+  run: () => Promise<void>
+}
+
+async function runPostProcessChain(steps: PostStep[], jobId: string): Promise<void> {
+  for (const step of steps) {
+    if (!step.shouldRun) continue
+    try {
+      const t0 = Date.now()
+      await step.run()
+      logger.info('post-process step ok', { jobId, name: step.name, ms: Date.now() - t0 })
+    } catch (err) {
+      logger.error('post-process step failed', { jobId, name: step.name, err })
+      if (step.critical) throw err
+    }
+  }
 }
 
 function handleLine(entry: RegistryEntry, stream: 'stdout' | 'stderr', line: string, mode: JobMode): void {

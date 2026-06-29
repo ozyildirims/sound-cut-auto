@@ -163,5 +163,177 @@ export function probeMedia(filePath: string): MediaInfo {
   }
 }
 
+// ── Social pass ──────────────────────────────────────────────────────────
+// Aspect ratio reframe + loudness normalization done in a single re-encode
+// (we re-encode anyway, so combining the work avoids a second video pass).
+
+import type { AspectMode } from '@shared/types'
+
+export interface SocialPassOptions {
+  aspect: { mode: Exclude<AspectMode, 'none'>; width: number; height: number } | null
+  loudness: { target: number } | null
+}
+
+interface LoudnormMeasured {
+  I: number; TP: number; LRA: number; threshold: number; offset: number
+}
+
+function buildAspectFilter(opts: SocialPassOptions['aspect']): string | null {
+  if (!opts) return null
+  const { mode, width, height } = opts
+  if (mode === 'crop-center') {
+    return `scale=w=if(gt(a\\,${width}/${height})\\,-2\\,${width}):h=if(gt(a\\,${width}/${height})\\,${height}\\,-2),crop=${width}:${height}`
+  }
+  // blur-pad: blurred scaled background fills the frame, original video centered on top
+  return `split=2[bg][fg];[bg]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},boxblur=20:1[bgb];[fg]scale=${width}:-2:force_original_aspect_ratio=decrease[fgs];[bgb][fgs]overlay=(W-w)/2:(H-h)/2`
+}
+
+function parseLoudnormJson(stderr: string): LoudnormMeasured | null {
+  // ffmpeg prints JSON to stderr after `[Parsed_loudnorm_…] {…}`. Find the last
+  // brace-delimited block and parse it.
+  const start = stderr.lastIndexOf('{')
+  const end = stderr.lastIndexOf('}')
+  if (start === -1 || end === -1 || end < start) return null
+  try {
+    const parsed = JSON.parse(stderr.slice(start, end + 1))
+    return {
+      I: Number(parsed.input_i),
+      TP: Number(parsed.input_tp),
+      LRA: Number(parsed.input_lra),
+      threshold: Number(parsed.input_thresh),
+      offset: Number(parsed.target_offset)
+    }
+  } catch {
+    return null
+  }
+}
+
+function measureLoudness(filePath: string, target: number): Promise<LoudnormMeasured | null> {
+  const { ffmpeg } = locateFfmpegTools()
+  if (!ffmpeg) return Promise.resolve(null)
+  return new Promise((resolve) => {
+    const args = [
+      '-hide_banner', '-nostats',
+      '-i', filePath,
+      '-af', `loudnorm=I=${target}:LRA=11:TP=-1.5:print_format=json`,
+      '-f', 'null', '-'
+    ]
+    const child = spawn(ffmpeg, args, { windowsHide: true })
+    let stderr = ''
+    child.stderr?.on('data', (c) => { stderr += c.toString('utf-8') })
+    child.on('error', () => resolve(null))
+    child.on('close', () => resolve(parseLoudnormJson(stderr)))
+  })
+}
+
+export async function applySocialPass(
+  filePath: string,
+  opts: SocialPassOptions
+): Promise<void> {
+  const { ffmpeg } = locateFfmpegTools()
+  if (!ffmpeg) throw new Error('ffmpeg bulunamadı (sosyal medya post-process için sidecar gerekli)')
+  if (!opts.aspect && !opts.loudness) return
+
+  // 1. Loudness pass 1: measure
+  let measured: LoudnormMeasured | null = null
+  if (opts.loudness) {
+    measured = await measureLoudness(filePath, opts.loudness.target)
+  }
+
+  // 2. Build encode args
+  const aspectFilter = buildAspectFilter(opts.aspect)
+  const videoArgs: string[] = []
+  if (aspectFilter) {
+    videoArgs.push('-vf', aspectFilter)
+  }
+
+  const audioArgs: string[] = []
+  if (opts.loudness && measured) {
+    const target = opts.loudness.target
+    const measuredArgs = [
+      `I=${target}`, 'LRA=11', 'TP=-1.5',
+      `measured_I=${measured.I}`,
+      `measured_TP=${measured.TP}`,
+      `measured_LRA=${measured.LRA}`,
+      `measured_thresh=${measured.threshold}`,
+      `offset=${measured.offset}`,
+      'linear=true',
+      'print_format=summary'
+    ].join(':')
+    audioArgs.push('-af', `loudnorm=${measuredArgs}`)
+  } else if (opts.loudness) {
+    // Fall back to a single-pass loudnorm if measurement failed
+    audioArgs.push('-af', `loudnorm=I=${opts.loudness.target}:LRA=11:TP=-1.5`)
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const tmp = filePath + '.social.tmp' + path.extname(filePath)
+    const args = [
+      '-y',
+      '-loglevel', 'error',
+      '-i', filePath,
+      ...videoArgs,
+      ...audioArgs,
+      '-c:v', 'libx264',
+      '-preset', 'medium',
+      '-crf', '20',
+      '-pix_fmt', 'yuv420p',
+      '-movflags', '+faststart',
+      '-c:a', 'aac',
+      '-b:a', '192k',
+      tmp
+    ]
+    const child = spawn(ffmpeg, args, { windowsHide: true })
+    let stderr = ''
+    child.stderr?.on('data', (c) => { stderr += c.toString('utf-8') })
+    child.on('error', reject)
+    child.on('close', (code) => {
+      if (code !== 0) {
+        try { fs.unlinkSync(tmp) } catch { /* noop */ }
+        return reject(new Error(`ffmpeg social pass failed (${code}): ${stderr.slice(-400)}`))
+      }
+      try {
+        fs.renameSync(tmp, filePath)
+        resolve()
+      } catch (err) {
+        reject(err)
+      }
+    })
+  })
+}
+
+// Cover frame extracted as a sibling .jpg next to the exported video
+export function extractCoverJpeg(
+  filePath: string,
+  timeSeconds: number,
+  outPath: string,
+  width = 1080
+): Promise<void> {
+  const { ffmpeg } = locateFfmpegTools()
+  if (!ffmpeg) return Promise.reject(new Error('ffmpeg bulunamadı'))
+  return new Promise((resolve, reject) => {
+    const args = [
+      '-y',
+      '-loglevel', 'error',
+      '-ss', String(timeSeconds),
+      '-i', filePath,
+      '-vframes', '1',
+      '-vf', `scale=${width}:-2`,
+      '-q:v', '2',
+      outPath
+    ]
+    const child = spawn(ffmpeg, args, { windowsHide: true })
+    let stderr = ''
+    child.stderr?.on('data', (c) => { stderr += c.toString('utf-8') })
+    child.on('error', reject)
+    child.on('close', (code) => {
+      if (code !== 0) {
+        return reject(new Error(`ffmpeg cover extract failed (${code}): ${stderr.slice(-200)}`))
+      }
+      resolve()
+    })
+  })
+}
+
 // app reference kept so this module can be imported safely before app ready
 void app

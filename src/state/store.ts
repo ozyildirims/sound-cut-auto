@@ -53,6 +53,9 @@ interface State {
   setRecentFiles: (paths: string[]) => void
   clearRecent: () => Promise<void>
 
+  playback: { currentTime: number; duration: number }
+  setPlayback: (next: { currentTime?: number; duration?: number }) => void
+
   preview: PreviewState
   startPreview: (filePath: string) => Promise<void>
 
@@ -212,6 +215,10 @@ export const useAppStore = create<State>((set, get) => ({
     set({ recentFiles: [] })
   },
 
+  playback: { currentTime: 0, duration: 0 },
+  setPlayback: (next) =>
+    set((state) => ({ playback: { ...state.playback, ...next } })),
+
   preview: { ...emptyPreview },
   startPreview: async (filePath) => {
     // Cancel any in-flight preview so rapid slider changes don't queue up
@@ -253,7 +260,8 @@ export const useAppStore = create<State>((set, get) => ({
         const { jobId } = await ipc.jobs.start({
           mode: 'export',
           filePath: file.path,
-          settings
+          settings,
+          coverTimeSeconds: file.coverTimeSeconds
         })
         jobIds.push(jobId)
       } catch (err) {

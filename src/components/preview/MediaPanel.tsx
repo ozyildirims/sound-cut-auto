@@ -16,9 +16,16 @@ export function MediaPanel() {
     return s.files.find((f) => f.id === id)?.durationSeconds ?? s.files[0]?.durationSeconds ?? 0
   })
   const playerRef = useRef<VideoPlayerHandle>(null)
+  const setPlayback = useAppStore((s) => s.setPlayback)
   const [time, setTime] = useState(0)
   const [videoDuration, setVideoDuration] = useState(0)
   const duration = videoDuration || probedDuration
+
+  // Mirror local playback into the store so peers (CoverFramePicker, etc.)
+  // can read the current time without prop drilling.
+  useEffect(() => {
+    setPlayback({ currentTime: time, duration })
+  }, [time, duration, setPlayback])
 
   // If duration is missing entirely (no ffprobe and HEVC), best-effort probe now
   useEffect(() => {

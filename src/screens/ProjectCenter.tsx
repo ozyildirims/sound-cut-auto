@@ -1,6 +1,7 @@
 import { Terminal } from 'lucide-react'
 import { MediaPanel } from '../components/preview/MediaPanel'
 import { PreviewPanel } from '../components/preview/PreviewPanel'
+import { DurationGuide } from '../components/social/DurationGuide'
 import { Card } from '../components/ui'
 import { previewArgs } from '../lib/argsPreview'
 import { useAppStore } from '../state/store'
@@ -34,6 +35,7 @@ export function ProjectCenter() {
 
   return (
     <div className="flex flex-col gap-5 p-6">
+      <DurationGuide />
       <MediaPanel />
       <PreviewPanel />
       {globalSettings.devShowCommand && (

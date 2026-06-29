@@ -19,6 +19,30 @@ export const EXPORT_FORMATS: { value: ExportFormat; label: string; description: 
   { value: 'clip-sequence', label: 'Clip sequence', description: 'Her klip ayrı dosya olarak' }
 ]
 
+export type SocialPreset = 'instagram-reel' | 'tiktok' | 'youtube-shorts'
+export type AspectMode = 'none' | 'crop-center' | 'blur-pad'
+
+export interface SocialPresetSpec {
+  id: SocialPreset
+  label: string
+  shortLabel: string
+  maxSeconds: number
+  outputWidth: number
+  outputHeight: number
+  recommendedLoudness: number
+}
+
+export const SOCIAL_PRESETS: SocialPresetSpec[] = [
+  { id: 'instagram-reel', label: 'Instagram Reel', shortLabel: 'Reel', maxSeconds: 180, outputWidth: 1080, outputHeight: 1920, recommendedLoudness: -14 },
+  { id: 'tiktok',         label: 'TikTok',         shortLabel: 'TikTok', maxSeconds: 600, outputWidth: 1080, outputHeight: 1920, recommendedLoudness: -14 },
+  { id: 'youtube-shorts', label: 'YouTube Shorts', shortLabel: 'Shorts', maxSeconds: 60,  outputWidth: 1080, outputHeight: 1920, recommendedLoudness: -14 }
+]
+
+export function getSocialPreset(id: SocialPreset | null | undefined): SocialPresetSpec | null {
+  if (!id) return null
+  return SOCIAL_PRESETS.find((p) => p.id === id) ?? null
+}
+
 export interface AutoEditSettings {
   thresholdAudio: number
   margin: string
@@ -28,6 +52,11 @@ export interface AutoEditSettings {
   exportFormat: ExportFormat
   outputDir: string | null
   devShowCommand: boolean
+  // Social media layer (all optional, backward compat)
+  socialPreset?: SocialPreset | null
+  aspectMode?: AspectMode
+  loudnessTarget?: number | null   // LUFS, null = off
+  exportCover?: boolean
 }
 
 export const DEFAULT_SETTINGS: AutoEditSettings = {
@@ -38,7 +67,11 @@ export const DEFAULT_SETTINGS: AutoEditSettings = {
   smoothEnabled: true,
   exportFormat: 'default',
   outputDir: null,
-  devShowCommand: false
+  devShowCommand: false,
+  socialPreset: null,
+  aspectMode: 'none',
+  loudnessTarget: null,
+  exportCover: false
 }
 
 export interface VideoFile {
@@ -50,6 +83,7 @@ export interface VideoFile {
   durationSeconds?: number
   thumbnailDataUrl?: string
   settingsOverride?: Partial<AutoEditSettings>
+  coverTimeSeconds?: number   // social cover frame target; null → duration * 0.1 fallback
 }
 
 export interface Preset {
@@ -136,4 +170,5 @@ export interface StartJobInput {
   filePath: string
   settings: AutoEditSettings
   outputPath?: string
+  coverTimeSeconds?: number   // user-selected; null/undefined → fallback duration*0.1 in main
 }

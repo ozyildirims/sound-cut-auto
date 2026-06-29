@@ -7,7 +7,12 @@ import { MarginInput } from '../components/settings/MarginInput'
 import { SmoothInput } from '../components/settings/SmoothInput'
 import { ExportFormatSelect } from '../components/settings/ExportFormatSelect'
 import { OutputFolderInput } from '../components/settings/OutputFolderInput'
+import { SocialPresetGrid } from '../components/social/SocialPresetGrid'
+import { AspectRatioToggle } from '../components/social/AspectRatioToggle'
+import { LoudnessToggle } from '../components/social/LoudnessToggle'
+import { CoverFramePicker } from '../components/social/CoverFramePicker'
 import { useAppStore } from '../state/store'
+import { useEffectiveSettings } from '../state/hooks'
 
 export function ProjectInspector() {
   const selectedId = useAppStore((s) => s.selectedFileId)
@@ -18,6 +23,7 @@ export function ProjectInspector() {
 
   const hasOverride = Boolean(selected?.settingsOverride && Object.keys(selected.settingsOverride).length)
   const multi = files.length > 1
+  const socialActive = !!useEffectiveSettings().socialPreset
 
   return (
     <>
@@ -45,8 +51,19 @@ export function ProjectInspector() {
         </div>
       )}
 
-      <InspectorSection title="Profil">
+      <InspectorSection title="Cut profili">
         <PresetBar />
+      </InspectorSection>
+
+      <InspectorSection title="Sosyal medya" trailing={socialActive ? <Badge tone="accent" size="sm">AÇIK</Badge> : undefined}>
+        <SocialPresetGrid />
+        {socialActive && (
+          <>
+            <AspectRatioToggle />
+            <LoudnessToggle />
+            <CoverFramePicker />
+          </>
+        )}
       </InspectorSection>
 
       <InspectorSection title="Cut">
