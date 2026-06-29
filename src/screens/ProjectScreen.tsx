@@ -4,7 +4,7 @@ import { SettingsPanel } from '../components/settings/SettingsPanel'
 import { PresetBar } from '../components/settings/PresetBar'
 import { PerFileHeader } from '../components/settings/PerFileHeader'
 import { PreviewPanel } from '../components/preview/PreviewPanel'
-import { Waveform } from '../components/preview/Waveform'
+import { MediaPanel } from '../components/preview/MediaPanel'
 import { previewArgs } from '../lib/argsPreview'
 import { useAppStore } from '../state/store'
 import { useEffectiveSettings } from '../state/hooks'
@@ -59,7 +59,7 @@ export function ProjectScreen() {
 
         <PresetBar />
         <PerFileHeader />
-        <Waveform />
+        <MediaPanel />
         <SettingsPanel />
         <PreviewPanel />
 

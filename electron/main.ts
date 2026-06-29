@@ -4,7 +4,11 @@ import { fileURLToPath } from 'node:url'
 import { registerIpcHandlers, ensureCliStatus } from './ipc/handlers'
 import { installAppMenu } from './app-menu'
 import { setupAutoUpdater } from './updater'
+import { installLocalMediaHandler, registerLocalMediaScheme } from './protocol'
 import { logger } from './util/logger'
+
+// Privileged scheme registration must happen before app is ready.
+registerLocalMediaScheme()
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const isDev = !app.isPackaged
@@ -69,6 +73,7 @@ async function createMainWindow(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  installLocalMediaHandler()
   registerIpcHandlers()
   installAppMenu()
   setupAutoUpdater()
