@@ -1,6 +1,10 @@
 import { spawn } from 'cross-spawn'
 
-export function getVersion(binaryPath: string, timeoutMs = 4000): Promise<string | null> {
+// Windows SmartScreen + AV can hold a freshly-extracted binary for several
+// seconds on first launch; give them room before declaring the binary dead.
+const DEFAULT_TIMEOUT = process.platform === 'win32' ? 20000 : 6000
+
+export function getVersion(binaryPath: string, timeoutMs = DEFAULT_TIMEOUT): Promise<string | null> {
   return new Promise((resolve) => {
     let resolved = false
     const child = spawn(binaryPath, ['--version'], { windowsHide: true })

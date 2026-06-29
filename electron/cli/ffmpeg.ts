@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
 import { app } from 'electron'
-import { getResourcesBinDir } from '../util/paths'
+import { getResourcesBinDir, platformSlug } from '../util/paths'
 
 function findOnPath(cmd: string): string | null {
   const isWin = process.platform === 'win32'
@@ -15,10 +15,8 @@ function findOnPath(cmd: string): string | null {
 }
 
 function findInResources(cmd: string): string | null {
-  const platform = process.platform
-  const arch = process.arch
-  const exe = platform === 'win32' ? `${cmd}.exe` : cmd
-  const candidate = path.join(getResourcesBinDir(), `${platform}-${arch}`, exe)
+  const exe = process.platform === 'win32' ? `${cmd}.exe` : cmd
+  const candidate = path.join(getResourcesBinDir(), platformSlug(), exe)
   return fs.existsSync(candidate) ? candidate : null
 }
 

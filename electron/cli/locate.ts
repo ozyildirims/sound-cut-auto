@@ -22,7 +22,7 @@ export async function locateCli({ override }: LocateOptions): Promise<CliStatus>
         path: override,
         version: null,
         source: 'override',
-        error: 'Override path exists but did not respond to --version.'
+        error: `"${override}" auto-editor binary'si gibi cevap vermedi (yanlış dosya, bozuk indirme veya Windows'ta antivirus engellemesi olabilir). Doğru binary için: github.com/WyattBlue/auto-editor/releases`
       }
     }
     return {
@@ -30,7 +30,7 @@ export async function locateCli({ override }: LocateOptions): Promise<CliStatus>
       path: override,
       version: null,
       source: 'override',
-      error: 'Override path does not exist.'
+      error: 'Override yolu mevcut değil — silinmiş olabilir.'
     }
   }
 

@@ -1,6 +1,14 @@
 import { app } from 'electron'
 import path from 'node:path'
 
+// Use the same slug shape electron-builder's ${platform}-${arch} produces
+// for extraResources (darwin-*, win-*, linux-*) so dev / packaged / fetch
+// scripts all agree on the directory name.
+export function platformSlug(): string {
+  const norm = process.platform === 'win32' ? 'win' : process.platform
+  return `${norm}-${process.arch}`
+}
+
 export function getResourcesBinDir(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'bin')
@@ -9,10 +17,8 @@ export function getResourcesBinDir(): string {
 }
 
 export function getSidecarBinaryPath(): string {
-  const platform = process.platform
-  const arch = process.arch
-  const slug = `${platform}-${arch}`
-  const exe = platform === 'win32' ? 'auto-editor.exe' : 'auto-editor'
+  const slug = platformSlug()
+  const exe = process.platform === 'win32' ? 'auto-editor.exe' : 'auto-editor'
   return path.join(getResourcesBinDir(), slug, exe)
 }
 

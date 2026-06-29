@@ -39,8 +39,14 @@ jobs:
         run: npm run build
 
       - name: Fetch sidecar binaries (auto-editor + ffmpeg/ffprobe)
-        run: npm run fetch:all
-        continue-on-error: true
+        shell: bash
+        run: |
+          npm run fetch:all
+          # mac runner is arm64 but we build both DMG arches — pull the x64
+          # auto-editor binary too so the Intel DMG isn't shipped without one.
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            node scripts/fetch-auto-editor.mjs darwin-x64 || true
+          fi
 
       # Empty string secrets are still rendered into env by GitHub Actions and
       # electron-builder treats CSC_LINK="" as a cert file path → "not a file"

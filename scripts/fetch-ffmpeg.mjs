@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Copies platform-appropriate ffmpeg + ffprobe binaries from the
 // ffmpeg-static / ffprobe-static npm packages into:
-//   resources/bin/<platform>-<arch>/
+//   resources/bin/<slug>/    (electron-builder's ${platform}-${arch} shape)
 //
 // electron-builder's extraResources block bundles that folder into the
 // produced .app / .exe so the rotation post-process, thumbnail extraction,
@@ -16,9 +16,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
 const require = createRequire(import.meta.url)
 
-const TARGET = process.argv[2] || `${process.platform}-${process.arch}`
-const outDir = join(ROOT, 'resources', 'bin', TARGET)
-const isWin = TARGET.startsWith('win32')
+function defaultSlug() {
+  const p = process.platform === 'win32' ? 'win' : process.platform
+  return `${p}-${process.arch}`
+}
+const SLUG = process.argv[2] || defaultSlug()
+const isWin = SLUG.startsWith('win')
+const outDir = join(ROOT, 'resources', 'bin', SLUG)
 
 async function copyTo(src, dstName) {
   await mkdir(outDir, { recursive: true })
