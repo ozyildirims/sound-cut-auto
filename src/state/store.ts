@@ -104,7 +104,8 @@ export const useAppStore = create<State>((set, get) => ({
         selectedFileId: get().selectedFileId ?? additions[0].id
       })
       void ipc.recent.add(additions.map((a) => a.path))
-      // Lazily fetch duration + thumbnail in the background; UI updates as they land.
+      // Lazily fetch duration + thumbnail + proxy in the background; UI
+      // updates as they land.
       for (const f of additions) {
         void ipc.media.probe(f.path).then((info) => {
           get().updateFile(f.id, {
@@ -112,6 +113,16 @@ export const useAppStore = create<State>((set, get) => ({
             thumbnailDataUrl: info.thumbnailDataUrl ?? undefined
           })
         }).catch(() => { /* best-effort */ })
+
+        get().updateFile(f.id, { proxyState: 'pending' })
+        void ipc.media.ensureProxy(f.path).then((proxyPath) => {
+          get().updateFile(f.id, { proxyPath, proxyState: 'ready' })
+        }).catch((err) => {
+          get().updateFile(f.id, {
+            proxyState: 'failed',
+            proxyError: err instanceof Error ? err.message : String(err)
+          })
+        })
       }
     }
   },

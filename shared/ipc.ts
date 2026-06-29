@@ -31,6 +31,7 @@ export const IPC = {
   mediaProbe: 'media:probe',
   mediaLevels: 'media:levels',
   mediaFrame: 'media:frame',
+  mediaEnsureProxy: 'media:ensure-proxy',
 
   updateCheck: 'update:check',
 
@@ -64,6 +65,7 @@ export interface IpcContract {
   [IPC.mediaProbe]: { request: string; response: { durationSeconds: number | null; thumbnailDataUrl: string | null } }
   [IPC.mediaLevels]: { request: string; response: { values: number[]; totalPoints: number; suggestedThreshold: number } }
   [IPC.mediaFrame]: { request: { filePath: string; timeSeconds: number; width?: number }; response: string | null }
+  [IPC.mediaEnsureProxy]: { request: string; response: string }
   [IPC.updateCheck]: { request: void; response: void }
   [IPC.diagReportError]: { request: { message: string; stack?: string | null; componentStack?: string | null; source?: string }; response: void }
 }

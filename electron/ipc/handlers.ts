@@ -23,7 +23,7 @@ import {
 } from './settings'
 import { installAppMenu } from '../app-menu'
 import { locateCli } from '../cli/locate'
-import { extractThumbnail, probeDuration } from '../cli/ffmpeg'
+import { ensureProxy, extractThumbnail, probeDuration } from '../cli/ffmpeg'
 import { probeLevels } from '../cli/levels'
 import { checkForUpdates } from '../updater'
 import { logger } from '../util/logger'
@@ -114,6 +114,10 @@ export function registerIpcHandlers(): void {
       return extractThumbnail(payload.filePath, payload.timeSeconds, payload.width ?? 720)
     }
   )
+
+  ipcMain.handle(IPC.mediaEnsureProxy, async (_e, filePath: string) => {
+    return ensureProxy(filePath)
+  })
 
   ipcMain.handle(IPC.updateCheck, async () => {
     await checkForUpdates({ silent: false })

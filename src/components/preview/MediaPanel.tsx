@@ -11,14 +11,14 @@ import { PlatformMockup } from '../social/PlatformMockup'
 type TabValue = 'original' | SocialPreset
 
 export function MediaPanel() {
-  const path = useAppStore((s) => {
+  const file = useAppStore((s) => {
     const id = s.selectedFileId
-    return s.files.find((f) => f.id === id)?.path ?? s.files[0]?.path ?? null
+    return s.files.find((f) => f.id === id) ?? s.files[0] ?? null
   })
-  const probedDuration = useAppStore((s) => {
-    const id = s.selectedFileId
-    return s.files.find((f) => f.id === id)?.durationSeconds ?? s.files[0]?.durationSeconds ?? 0
-  })
+  const path = file?.path ?? null
+  const probedDuration = file?.durationSeconds ?? 0
+  const proxyPath = file?.proxyPath ?? null
+  const proxyState = file?.proxyState ?? 'idle'
   const settings = useEffectiveSettings()
   const setPlayback = useAppStore((s) => s.setPlayback)
   const playerRef = useRef<VideoPlayerHandle>(null)
@@ -68,6 +68,8 @@ export function MediaPanel() {
     <VideoPlayer
       ref={playerRef}
       filePath={path}
+      proxyPath={proxyPath}
+      proxyState={proxyState}
       duration={duration}
       externalTime={time}
       onTimeUpdate={setTime}

@@ -53,7 +53,8 @@ const api: AutocutApi = {
     probe: (filePath: string) => invoke(IPC.mediaProbe, filePath),
     levels: (filePath: string) => invoke(IPC.mediaLevels, filePath),
     frame: (filePath: string, timeSeconds: number, width?: number) =>
-      invoke(IPC.mediaFrame, { filePath, timeSeconds, width })
+      invoke(IPC.mediaFrame, { filePath, timeSeconds, width }),
+    ensureProxy: (filePath: string) => invoke(IPC.mediaEnsureProxy, filePath)
   },
   update: {
     check: () => invoke(IPC.updateCheck)

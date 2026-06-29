@@ -163,6 +163,93 @@ export function probeMedia(filePath: string): MediaInfo {
   }
 }
 
+// ── Preview proxy ─────────────────────────────────────────────────────────
+// Renderer-side <video> can't reliably play HEVC (codec license) and even
+// h264 sometimes chokes through our custom local-media:// scheme because of
+// Range-header semantics. We sidestep both by transcoding each imported
+// file to a tiny 720p h264 mp4 once on import and pointing the player at
+// that. The original file is still what auto-editor cuts, so quality is
+// preserved.
+
+import { createHash } from 'node:crypto'
+import { mkdirSync, statSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+
+let _proxyDir: string | null = null
+export function getProxyDir(): string {
+  if (_proxyDir) return _proxyDir
+  // app.getPath('userData') is the obvious home but isn't available before
+  // app is ready; defer if needed and cache.
+  try {
+    _proxyDir = path.join(app.getPath('userData'), 'proxies')
+  } catch {
+    _proxyDir = path.join(tmpdir(), 'sound-cut-auto-proxies')
+  }
+  mkdirSync(_proxyDir, { recursive: true })
+  return _proxyDir
+}
+
+function proxyKeyFor(filePath: string): string {
+  try {
+    const s = statSync(filePath)
+    return createHash('sha1')
+      .update(`${filePath}|${s.size}|${s.mtimeMs}`)
+      .digest('hex')
+      .slice(0, 20)
+  } catch {
+    return createHash('sha1').update(filePath).digest('hex').slice(0, 20)
+  }
+}
+
+export function getProxyPath(filePath: string): string {
+  return path.join(getProxyDir(), proxyKeyFor(filePath) + '.mp4')
+}
+
+export function ensureProxy(filePath: string): Promise<string> {
+  const out = getProxyPath(filePath)
+  if (fs.existsSync(out)) {
+    try {
+      if (statSync(out).size > 1024) return Promise.resolve(out)
+    } catch { /* fall through to regenerate */ }
+  }
+
+  const { ffmpeg } = locateFfmpegTools()
+  if (!ffmpeg) return Promise.reject(new Error('ffmpeg bulunamadı (proxy üretemedim)'))
+
+  return new Promise<string>((resolve, reject) => {
+    const tmp = out + '.tmp.mp4'
+    const args = [
+      '-y',
+      '-loglevel', 'error',
+      '-i', filePath,
+      '-vf', 'scale=-2:720',
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-crf', '28',
+      '-c:a', 'aac',
+      '-b:a', '96k',
+      '-movflags', '+faststart',
+      tmp
+    ]
+    const child = spawn(ffmpeg, args, { windowsHide: true })
+    let stderr = ''
+    child.stderr?.on('data', (c) => { stderr += c.toString('utf-8') })
+    child.on('error', reject)
+    child.on('close', (code) => {
+      if (code !== 0) {
+        try { fs.unlinkSync(tmp) } catch { /* noop */ }
+        return reject(new Error(`proxy transcode failed (${code}): ${stderr.slice(-300)}`))
+      }
+      try {
+        fs.renameSync(tmp, out)
+        resolve(out)
+      } catch (err) {
+        reject(err)
+      }
+    })
+  })
+}
+
 // ── Social pass ──────────────────────────────────────────────────────────
 // Aspect ratio reframe + loudness normalization done in a single re-encode
 // (we re-encode anyway, so combining the work avoids a second video pass).

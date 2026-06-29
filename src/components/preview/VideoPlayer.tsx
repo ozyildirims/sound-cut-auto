@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { FileImage, Info, Maximize2, Pause, Play, Volume2, VolumeX, X } from 'lucide-react'
+import { FileImage, Info, Loader2, Maximize2, Pause, Play, Volume2, VolumeX, X } from 'lucide-react'
 import { toLocalMediaUrl } from '../../lib/mediaUrl'
 import { ipc } from '../../ipc/client'
 import { formatSeconds } from '../../lib/format'
@@ -11,6 +11,8 @@ export interface VideoPlayerHandle {
 
 interface Props {
   filePath: string | null
+  proxyPath?: string | null
+  proxyState?: 'idle' | 'pending' | 'ready' | 'failed'
   duration: number
   externalTime?: number
   onTimeUpdate?: (time: number) => void
@@ -18,15 +20,13 @@ interface Props {
   onPlayingChange?: (playing: boolean) => void
 }
 
-// Renderer-side LRU cache so dragging back and forth through the waveform
-// reuses already-decoded JPEG frames instead of refetching every time.
+// LRU cache for frame-by-frame fallback mode (HEVC unsupported codec)
 const FRAME_CACHE = new Map<string, string>()
 const FRAME_CACHE_LIMIT = 60
 
 function cacheGet(key: string): string | undefined {
   const v = FRAME_CACHE.get(key)
   if (v !== undefined) {
-    // Refresh recency
     FRAME_CACHE.delete(key)
     FRAME_CACHE.set(key, v)
   }
@@ -43,7 +43,16 @@ function cacheSet(key: string, value: string): void {
 }
 
 export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPlayer(
-  { filePath, duration, externalTime, onTimeUpdate, onDurationChange, onPlayingChange },
+  {
+    filePath,
+    proxyPath,
+    proxyState = 'idle',
+    duration,
+    externalTime,
+    onTimeUpdate,
+    onDurationChange,
+    onPlayingChange
+  },
   ref
 ) {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -57,7 +66,16 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
   const lastFrameKey = useRef<string>('')
   const bannerTimer = useRef<number | null>(null)
 
-  const src = filePath ? toLocalMediaUrl(filePath) : null
+  // Prefer the proxy (always h264 720p, always decodable). Only fall back
+  // to the original file path if the proxy genuinely failed to build —
+  // in that case onError will still flip frame mode.
+  const playbackPath =
+    proxyState === 'ready' && proxyPath
+      ? proxyPath
+      : proxyState === 'failed'
+        ? filePath
+        : null
+  const src = playbackPath ? toLocalMediaUrl(playbackPath) : null
 
   useImperativeHandle(
     ref,
@@ -82,7 +100,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
     lastFrameKey.current = ''
   }, [filePath])
 
-  // Show the "frame mode" banner only briefly when fallback first kicks in.
   useEffect(() => {
     if (!fallback) {
       setBannerVisible(false)
@@ -96,11 +113,10 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
     }
   }, [fallback])
 
-  // Fallback mode: rounded-time keyed cache + debounced ffmpeg fetch
+  // Frame fallback: scrub-driven ffmpeg frame fetches, debounced + cached
   useEffect(() => {
     if (!fallback || !filePath) return
     const t = externalTime ?? time
-    // Round to nearest 0.2s so close scrubs hit the same cache slot.
     const rounded = Math.round(t * 5) / 5
     const key = `${filePath}@${rounded.toFixed(1)}`
     if (key === lastFrameKey.current) return
@@ -115,7 +131,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
     lastFrameKey.current = key
     const handle = window.setTimeout(() => {
       setFrameLoading(true)
-      // Smaller frame: faster ffmpeg, less IPC base64, snappier scrub.
       ipc.media
         .frame(filePath, rounded, 480)
         .then((url) => {
@@ -138,9 +153,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
     else v.pause()
   }
 
-  if (!filePath || !src) {
+  if (!filePath) {
     return (
-      <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-edge text-sm text-zinc-500">
+      <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-edge text-sm text-text-muted">
         Bir dosya seç → burada oynat.
       </div>
     )
@@ -149,13 +164,30 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
   return (
     <div className="overflow-hidden rounded-xl border border-edge bg-black">
       <div className="relative aspect-video w-full">
-        {!fallback ? (
+        {fallback ? (
+          <div className="relative flex h-full w-full items-center justify-center">
+            {frameUrl ? (
+              <img src={frameUrl} alt="frame" className="h-full w-full object-contain" />
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-text-muted">
+                <FileImage className="h-8 w-8" />
+                <span className="text-xs">Frame yükleniyor…</span>
+              </div>
+            )}
+            {frameLoading && frameUrl && (
+              <div className="absolute right-2 top-2 rounded bg-black/60 px-2 py-0.5 text-[10px] text-zinc-300">
+                yükleniyor
+              </div>
+            )}
+          </div>
+        ) : src ? (
           <video
             ref={videoRef}
             src={src}
             className="h-full w-full bg-black"
-            preload="metadata"
+            preload="auto"
             muted={muted}
+            playsInline
             onLoadedMetadata={(e) => {
               const d = e.currentTarget.duration
               if (Number.isFinite(d) && d > 0) onDurationChange?.(d)
@@ -173,30 +205,27 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
               setPlaying(false)
               onPlayingChange?.(false)
             }}
-            onError={() => setFallback(true)}
+            onError={(e) => {
+              console.warn('video element error', e.currentTarget.error)
+              setFallback(true)
+            }}
           />
         ) : (
-          <div className="relative flex h-full w-full items-center justify-center">
-            {frameUrl ? (
-              <img src={frameUrl} alt="frame" className="h-full w-full object-contain" />
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-zinc-500">
-                <FileImage className="h-8 w-8" />
-                <span className="text-xs">Frame yükleniyor…</span>
-              </div>
-            )}
-            {frameLoading && frameUrl && (
-              <div className="absolute right-2 top-2 rounded bg-black/60 px-2 py-0.5 text-[10px] text-zinc-300">
-                yükleniyor
-              </div>
-            )}
+          // Proxy still being generated (or pending). Show a calm spinner.
+          <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-text-muted">
+            <Loader2 className="h-6 w-6 animate-spin text-accent" />
+            <div className="text-sm">Önizleme hazırlanıyor…</div>
+            <div className="text-2xs text-text-muted">
+              {proxyState === 'pending' ? 'ffmpeg ile h264 proxy çıkarılıyor' : 'bekleniyor'}
+            </div>
           </div>
         )}
+
         {fallback && bannerVisible && (
           <div className="absolute inset-x-2 bottom-2 flex items-start gap-2 rounded-md bg-amber-950/85 px-3 py-2 text-xs text-amber-100 shadow-lg backdrop-blur transition-opacity">
             <Info className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <span className="flex-1 leading-snug">
-              HEVC codec tarayıcıda çalmıyor — dalga üzerinde sürükle, her ana ait kare gösterilir.
+              Codec tarayıcıda çalmıyor — dalga üzerinde sürükle, her ana ait kare gösterilir.
             </span>
             <button
               className="rounded p-0.5 text-amber-200 hover:bg-amber-100/10"
@@ -208,16 +237,16 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
           </div>
         )}
       </div>
-      <div className="flex items-center gap-3 border-t border-edge bg-bg-surface px-3 py-2 text-xs text-zinc-300">
+      <div className="flex items-center gap-3 border-t border-edge bg-bg-surface px-3 py-2 text-xs text-text-secondary">
         <button
-          className="btn-ghost h-7 w-7 !p-0 text-zinc-200 disabled:opacity-40"
+          className="btn-ghost h-7 w-7 !p-0 text-text-primary disabled:opacity-40"
           onClick={toggle}
-          disabled={fallback}
-          title={fallback ? 'Frame modunda oynatma yok' : playing ? 'Duraklat' : 'Oynat'}
+          disabled={fallback || !src}
+          title={fallback ? 'Frame modu' : playing ? 'Duraklat' : 'Oynat'}
         >
           {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         </button>
-        <span className="font-mono tabular-nums">
+        <span className="font-mono tabular-nums text-text-primary">
           {formatSeconds(externalTime ?? time)}
         </span>
         {fallback && (
@@ -229,20 +258,25 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
             frame mode
           </button>
         )}
+        {proxyState === 'pending' && (
+          <span className="flex items-center gap-1 text-2xs text-text-muted">
+            <Loader2 className="h-3 w-3 animate-spin" /> proxy
+          </span>
+        )}
         <div className="flex-1" />
-        <span className="font-mono tabular-nums text-zinc-500">{formatSeconds(duration)}</span>
+        <span className="font-mono tabular-nums text-text-muted">{formatSeconds(duration)}</span>
         <button
-          className="btn-ghost h-7 w-7 !p-0 text-zinc-400 disabled:opacity-40"
+          className="btn-ghost h-7 w-7 !p-0 text-text-muted disabled:opacity-40"
           onClick={() => setMuted((m) => !m)}
-          disabled={fallback}
+          disabled={fallback || !src}
           title={muted ? 'Sesi aç' : 'Sustur'}
         >
           {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
         <button
-          className="btn-ghost h-7 w-7 !p-0 text-zinc-400 disabled:opacity-40"
+          className="btn-ghost h-7 w-7 !p-0 text-text-muted disabled:opacity-40"
           onClick={() => videoRef.current?.requestFullscreen?.()}
-          disabled={fallback}
+          disabled={fallback || !src}
           title="Tam ekran"
         >
           <Maximize2 className="h-4 w-4" />

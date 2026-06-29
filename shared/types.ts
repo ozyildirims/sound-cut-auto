@@ -84,6 +84,9 @@ export interface VideoFile {
   thumbnailDataUrl?: string
   settingsOverride?: Partial<AutoEditSettings>
   coverTimeSeconds?: number   // social cover frame target; null → duration * 0.1 fallback
+  proxyPath?: string          // 720p h264 transcoded proxy that the player loads
+  proxyState?: 'idle' | 'pending' | 'ready' | 'failed'
+  proxyError?: string
 }
 
 export interface Preset {

@@ -33,6 +33,7 @@ export interface AutocutApi {
     probe: (filePath: string) => Promise<{ durationSeconds: number | null; thumbnailDataUrl: string | null }>
     levels: (filePath: string) => Promise<{ values: number[]; totalPoints: number; suggestedThreshold: number }>
     frame: (filePath: string, timeSeconds: number, width?: number) => Promise<string | null>
+    ensureProxy: (filePath: string) => Promise<string>
   }
   update: {
     check: () => Promise<void>
