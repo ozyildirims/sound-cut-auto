@@ -108,6 +108,13 @@ export function registerIpcHandlers(): void {
     return probeLevels(status.path, filePath)
   })
 
+  ipcMain.handle(
+    IPC.mediaFrame,
+    async (_e, payload: { filePath: string; timeSeconds: number; width?: number }) => {
+      return extractThumbnail(payload.filePath, payload.timeSeconds, payload.width ?? 720)
+    }
+  )
+
   ipcMain.handle(IPC.updateCheck, async () => {
     await checkForUpdates({ silent: false })
   })

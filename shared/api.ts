@@ -32,6 +32,7 @@ export interface AutocutApi {
   media: {
     probe: (filePath: string) => Promise<{ durationSeconds: number | null; thumbnailDataUrl: string | null }>
     levels: (filePath: string) => Promise<{ values: number[]; totalPoints: number; suggestedThreshold: number }>
+    frame: (filePath: string, timeSeconds: number, width?: number) => Promise<string | null>
   }
   update: {
     check: () => Promise<void>

@@ -130,15 +130,20 @@ export function extractThumbnail(filePath: string, atSeconds = 0.5, width = 160)
     ffmpeg,
     [
       '-loglevel', 'error',
+      // -ss before -i is the "fast seek" path: ffmpeg jumps to the
+      // nearest keyframe and decodes from there. Less precise than
+      // post-input -ss, but ~10× faster on long HEVC files — good
+      // tradeoff for a live scrub UI.
       '-ss', String(atSeconds),
       '-i', filePath,
       '-vframes', '1',
       '-vf', `scale=${width}:-1`,
       '-f', 'image2pipe',
       '-c:v', 'mjpeg',
+      '-q:v', '5',
       '-'
     ],
-    { encoding: 'buffer', timeout: 15000, maxBuffer: 8 * 1024 * 1024 }
+    { encoding: 'buffer', timeout: 15000, maxBuffer: 16 * 1024 * 1024 }
   )
   if (result.status !== 0 || !result.stdout || result.stdout.length === 0) return null
   return 'data:image/jpeg;base64,' + Buffer.from(result.stdout).toString('base64')
