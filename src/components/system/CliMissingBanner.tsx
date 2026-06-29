@@ -26,14 +26,14 @@ export function CliMissingBanner() {
         <FolderOpen className="h-4 w-4" /> Binary seç
       </button>
       <button
-        className="btn-ghost text-amber-200/80"
+        className="btn-outline border-amber-400/60 text-amber-100 hover:bg-amber-500/10"
         onClick={async () => {
           const status = await ipc.cli.resetOverride()
           setCliStatus(status)
         }}
-        title="Sidecar / PATH ile tekrar dene"
+        title="Override'ı temizle, sidecar / PATH ile tekrar dene"
       >
-        <RotateCcw className="h-4 w-4" />
+        <RotateCcw className="h-4 w-4" /> Sıfırla
       </button>
     </div>
   )

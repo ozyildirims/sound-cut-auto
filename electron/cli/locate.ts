@@ -12,7 +12,14 @@ interface LocateOptions {
 export async function locateCli({ override }: LocateOptions): Promise<CliStatus> {
   // 1. user-set override
   if (override) {
-    if (fs.existsSync(override)) {
+    // Guard: user accidentally picked a media file as the binary. Don't even
+    // try to run it — skip straight to the bundled sidecar.
+    const lower = override.toLowerCase()
+    const mediaExtensions = ['.mp4', '.mov', '.mkv', '.webm', '.avi', '.m4v', '.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg', '.jpg', '.jpeg', '.png', '.heic', '.gif', '.pdf']
+    const looksLikeMedia = mediaExtensions.some((ext) => lower.endsWith(ext))
+    if (looksLikeMedia) {
+      // fall through to sidecar/PATH lookup; treat the override as a mistake
+    } else if (fs.existsSync(override)) {
       const version = await getVersion(override)
       if (version) {
         return { found: true, path: override, version, source: 'override' }
@@ -24,13 +31,14 @@ export async function locateCli({ override }: LocateOptions): Promise<CliStatus>
         source: 'override',
         error: `"${override}" auto-editor binary'si gibi cevap vermedi (yanlış dosya, bozuk indirme veya Windows'ta antivirus engellemesi olabilir). Doğru binary için: github.com/WyattBlue/auto-editor/releases`
       }
-    }
-    return {
-      found: false,
-      path: override,
-      version: null,
-      source: 'override',
-      error: 'Override yolu mevcut değil — silinmiş olabilir.'
+    } else {
+      return {
+        found: false,
+        path: override,
+        version: null,
+        source: 'override',
+        error: 'Override yolu mevcut değil — silinmiş olabilir.'
+      }
     }
   }
 
