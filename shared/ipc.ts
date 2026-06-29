@@ -33,6 +33,8 @@ export const IPC = {
 
   updateCheck: 'update:check',
 
+  diagReportError: 'diag:report-error',
+
   // one-way main → renderer events (no request/response, just `send`)
   menuNavigate: 'menu:navigate',
   menuFilesAdded: 'menu:files-added',
@@ -61,6 +63,7 @@ export interface IpcContract {
   [IPC.mediaProbe]: { request: string; response: { durationSeconds: number | null; thumbnailDataUrl: string | null } }
   [IPC.mediaLevels]: { request: string; response: { values: number[]; totalPoints: number; suggestedThreshold: number } }
   [IPC.updateCheck]: { request: void; response: void }
+  [IPC.diagReportError]: { request: { message: string; stack?: string | null; componentStack?: string | null; source?: string }; response: void }
 }
 
 export type JobEventPayload = JobEvent

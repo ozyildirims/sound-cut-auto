@@ -36,6 +36,9 @@ export interface AutocutApi {
   update: {
     check: () => Promise<void>
   }
+  diag: {
+    reportError: (payload: { message: string; stack?: string | null; componentStack?: string | null; source?: string }) => Promise<void>
+  }
   recent: {
     list: () => Promise<string[]>
     add: (paths: string[]) => Promise<string[]>

@@ -1,10 +1,18 @@
+import { useMemo } from 'react'
 import { useAppStore } from './store'
 
-// Effective settings = global ⊕ selected file's override (if any).
-// Settings components read from this and call patchEffective so a slider
-// edit lands on the per-file override when a file is selected, or on the
-// global default when nothing is selected.
+// Subscribe to the underlying primitives separately so each selector returns
+// a stable reference, then compose with useMemo. Returning a fresh
+// `{ ...settings, ...override }` directly from a Zustand selector trips its
+// Object.is equality check and re-renders forever.
 export function useEffectiveSettings() {
+  const settings = useAppStore((s) => s.settings)
   const fileId = useAppStore((s) => s.selectedFileId)
-  return useAppStore((s) => s.effectiveSettingsFor(fileId))
+  const override = useAppStore((s) =>
+    fileId ? s.files.find((f) => f.id === fileId)?.settingsOverride : undefined
+  )
+  return useMemo(() => {
+    if (!override || Object.keys(override).length === 0) return settings
+    return { ...settings, ...override }
+  }, [settings, override])
 }

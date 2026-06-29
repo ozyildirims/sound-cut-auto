@@ -56,6 +56,9 @@ const api: AutocutApi = {
   update: {
     check: () => invoke(IPC.updateCheck)
   },
+  diag: {
+    reportError: (payload) => invoke(IPC.diagReportError, payload)
+  },
   recent: {
     list: () => ipcRenderer.invoke('recent:list') as Promise<string[]>,
     add: (paths: string[]) => ipcRenderer.invoke('recent:add', paths) as Promise<string[]>,

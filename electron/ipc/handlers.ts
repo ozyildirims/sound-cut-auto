@@ -112,6 +112,10 @@ export function registerIpcHandlers(): void {
     await checkForUpdates({ silent: false })
   })
 
+  ipcMain.handle(IPC.diagReportError, async (_e, payload: { message: string; stack?: string | null; componentStack?: string | null; source?: string }) => {
+    logger.error('renderer error', payload)
+  })
+
   ipcMain.handle('recent:list', async () => getRecentFiles())
   ipcMain.handle('recent:add', async (_e, paths: string[]) => {
     if (!Array.isArray(paths) || !paths.length) return getRecentFiles()
