@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { AlertTriangle, FileImage, Maximize2, Pause, Play, Volume2, VolumeX } from 'lucide-react'
+import { FileImage, Info, Maximize2, Pause, Play, Volume2, VolumeX, X } from 'lucide-react'
 import { toLocalMediaUrl } from '../../lib/mediaUrl'
 import { ipc } from '../../ipc/client'
 import { formatSeconds } from '../../lib/format'
@@ -12,11 +12,34 @@ export interface VideoPlayerHandle {
 interface Props {
   filePath: string | null
   duration: number
-  /** When the codec doesn't play, the parent drives currentTime via scrub. */
   externalTime?: number
   onTimeUpdate?: (time: number) => void
   onDurationChange?: (duration: number) => void
   onPlayingChange?: (playing: boolean) => void
+}
+
+// Renderer-side LRU cache so dragging back and forth through the waveform
+// reuses already-decoded JPEG frames instead of refetching every time.
+const FRAME_CACHE = new Map<string, string>()
+const FRAME_CACHE_LIMIT = 60
+
+function cacheGet(key: string): string | undefined {
+  const v = FRAME_CACHE.get(key)
+  if (v !== undefined) {
+    // Refresh recency
+    FRAME_CACHE.delete(key)
+    FRAME_CACHE.set(key, v)
+  }
+  return v
+}
+
+function cacheSet(key: string, value: string): void {
+  FRAME_CACHE.set(key, value)
+  while (FRAME_CACHE.size > FRAME_CACHE_LIMIT) {
+    const first = FRAME_CACHE.keys().next().value
+    if (first === undefined) break
+    FRAME_CACHE.delete(first)
+  }
 }
 
 export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPlayer(
@@ -30,7 +53,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
   const [fallback, setFallback] = useState(false)
   const [frameUrl, setFrameUrl] = useState<string | null>(null)
   const [frameLoading, setFrameLoading] = useState(false)
+  const [bannerVisible, setBannerVisible] = useState(false)
   const lastFrameKey = useRef<string>('')
+  const bannerTimer = useRef<number | null>(null)
 
   const src = filePath ? toLocalMediaUrl(filePath) : null
 
@@ -49,7 +74,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
     [duration, fallback]
   )
 
-  // Reset when source changes
   useEffect(() => {
     setPlaying(false)
     setTime(0)
@@ -58,22 +82,51 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
     lastFrameKey.current = ''
   }, [filePath])
 
-  // Fallback mode: re-extract a frame whenever the external time changes,
-  // debounced so dragging across the waveform doesn't queue 50 ffmpegs.
+  // Show the "frame mode" banner only briefly when fallback first kicks in.
+  useEffect(() => {
+    if (!fallback) {
+      setBannerVisible(false)
+      return
+    }
+    setBannerVisible(true)
+    if (bannerTimer.current) window.clearTimeout(bannerTimer.current)
+    bannerTimer.current = window.setTimeout(() => setBannerVisible(false), 5000)
+    return () => {
+      if (bannerTimer.current) window.clearTimeout(bannerTimer.current)
+    }
+  }, [fallback])
+
+  // Fallback mode: rounded-time keyed cache + debounced ffmpeg fetch
   useEffect(() => {
     if (!fallback || !filePath) return
     const t = externalTime ?? time
-    const key = `${filePath}@${t.toFixed(1)}`
+    // Round to nearest 0.2s so close scrubs hit the same cache slot.
+    const rounded = Math.round(t * 5) / 5
+    const key = `${filePath}@${rounded.toFixed(1)}`
     if (key === lastFrameKey.current) return
+
+    const cached = cacheGet(key)
+    if (cached) {
+      lastFrameKey.current = key
+      setFrameUrl(cached)
+      return
+    }
+
     lastFrameKey.current = key
     const handle = window.setTimeout(() => {
       setFrameLoading(true)
+      // Smaller frame: faster ffmpeg, less IPC base64, snappier scrub.
       ipc.media
-        .frame(filePath, t, 720)
-        .then((url) => setFrameUrl(url))
+        .frame(filePath, rounded, 480)
+        .then((url) => {
+          if (url) {
+            cacheSet(key, url)
+            setFrameUrl(url)
+          }
+        })
         .catch(() => {})
         .finally(() => setFrameLoading(false))
-    }, 80)
+    }, 60)
     return () => window.clearTimeout(handle)
   }, [fallback, filePath, externalTime, time])
 
@@ -132,20 +185,26 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
                 <span className="text-xs">Frame yükleniyor…</span>
               </div>
             )}
-            {frameLoading && (
+            {frameLoading && frameUrl && (
               <div className="absolute right-2 top-2 rounded bg-black/60 px-2 py-0.5 text-[10px] text-zinc-300">
                 yükleniyor
               </div>
             )}
           </div>
         )}
-        {fallback && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-2 bg-amber-950/80 px-3 py-2 text-xs text-amber-100 backdrop-blur">
-            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-            <span>
-              Bu kodek tarayıcıda çalmıyor (genelde HEVC). Frame-by-frame moduna geçtim — dalga
-              üzerinde sürükle, o ana ait kare gösterilir.
+        {fallback && bannerVisible && (
+          <div className="absolute inset-x-2 bottom-2 flex items-start gap-2 rounded-md bg-amber-950/85 px-3 py-2 text-xs text-amber-100 shadow-lg backdrop-blur transition-opacity">
+            <Info className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <span className="flex-1 leading-snug">
+              HEVC codec tarayıcıda çalmıyor — dalga üzerinde sürükle, her ana ait kare gösterilir.
             </span>
+            <button
+              className="rounded p-0.5 text-amber-200 hover:bg-amber-100/10"
+              onClick={() => setBannerVisible(false)}
+              title="Kapat"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
         )}
       </div>
@@ -161,6 +220,15 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(function VideoPl
         <span className="font-mono tabular-nums">
           {formatSeconds(externalTime ?? time)}
         </span>
+        {fallback && (
+          <button
+            onClick={() => setBannerVisible((v) => !v)}
+            className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-200 hover:bg-amber-500/20"
+            title="Frame modu — bilgi için tıkla"
+          >
+            frame mode
+          </button>
+        )}
         <div className="flex-1" />
         <span className="font-mono tabular-nums text-zinc-500">{formatSeconds(duration)}</span>
         <button

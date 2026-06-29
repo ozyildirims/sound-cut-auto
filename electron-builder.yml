@@ -30,6 +30,11 @@ mac:
       arch: [arm64, x64]
   notarize: false
   icon: resources/icon.icns
+  extendInfo:
+    # Stop Launch Services from ever firing this app under Rosetta on
+    # Apple Silicon — Rosetta + Electron V8 produces hard crashes that
+    # are impossible to debug at the JS layer.
+    LSRequiresNativeExecution: true
 
 dmg:
   contents:
