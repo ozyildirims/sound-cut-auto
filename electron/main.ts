@@ -10,14 +10,10 @@ import { logger } from './util/logger'
 // Privileged scheme registration must happen before app is ready.
 registerLocalMediaScheme()
 
-// Enable platform HEVC hardware decode. Electron's bundled Chromium ships
-// HEVC support gated behind a feature flag on Mac/Win (VideoToolbox /
-// D3D11VA). With this on, iPhone .MOV files play natively in the renderer
-// without needing the frame-by-frame ffmpeg fallback.
-app.commandLine.appendSwitch(
-  'enable-features',
-  'PlatformHEVCDecoderSupport,PlatformEncryptedHevcDecoderSupport'
-)
+// Note: we used to enable PlatformHEVCDecoderSupport here, but Electron 33's
+// V8 crashed on startup with that flag set (BackingStore::MaxByteLength).
+// We now generate an h264 proxy at import time, so native HEVC decode is no
+// longer required.
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const isDev = !app.isPackaged
